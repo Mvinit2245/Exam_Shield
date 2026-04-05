@@ -172,21 +172,11 @@ async function startExam() {
 
         const res = await fetch(`${API}/start_exam`, {
             method: "POST",
-            headers: getHeaders(),   // ✅ FIXED
+            headers: getHeaders(),
             body: JSON.stringify({
                 student_id: studentId
             })
         })
-
-        print("USER FROM TOKEN:", user)
-
-        // 🔥 ADD THIS DEBUG
-        if (!res.ok) {
-            const error = await res.text()
-            console.log("Error:", error)
-            alert("Backend error: " + error)
-            return
-        }
 
         const data = await res.json()
 

@@ -17,11 +17,13 @@ def start_exam(
     db: Session = Depends(get_db),
     user: str = Depends(verify_token)   # ✅ ADD THIS
 ):
+    
+    
 
     if not data.student_id:
         raise HTTPException(status_code=400, detail="student_id required")
 
-    print("Logged user:", user)   # ✅ DEBUG
+       # ✅ DEBUG
 
     session = models.ExamSession(
         student_id=data.student_id,
