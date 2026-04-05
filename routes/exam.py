@@ -5,17 +5,27 @@ import models
 import schemas
 from database import get_db
 
+from auth import verify_token
+
 router = APIRouter()
 
 
+# ================= START EXAM =================
 @router.post("/start_exam")
-def start_exam(data: schemas.StartExam, db: Session = Depends(get_db)):
+def start_exam(
+    data: schemas.StartExam,
+    db: Session = Depends(get_db),
+    user: str = Depends(verify_token)   # ✅ ADD THIS
+):
 
     if not data.student_id:
         raise HTTPException(status_code=400, detail="student_id required")
 
+    print("Logged user:", user)   # ✅ DEBUG
+
     session = models.ExamSession(
-        student_id=data.student_id
+        student_id=data.student_id,
+        user=user   # ✅ STORE USER
     )
 
     db.add(session)
@@ -24,12 +34,19 @@ def start_exam(data: schemas.StartExam, db: Session = Depends(get_db)):
 
     return {
         "session_id": session.id,
-        "student_id": session.student_id
+        "student_id": session.student_id,
+        "user": user   # ✅ OPTIONAL (for testing)
     }
 
 
+# ================= EVENT =================
 @router.post("/event/{session_id}")
-def log_event(session_id: int, data: schemas.Event, db: Session = Depends(get_db)):
+def log_event(
+    session_id: int,
+    data: schemas.Event,
+    db: Session = Depends(get_db),
+    user: str = Depends(verify_token)   # ✅ PROTECT
+):
 
     session = db.query(models.ExamSession).filter(
         models.ExamSession.id == session_id
@@ -49,8 +66,14 @@ def log_event(session_id: int, data: schemas.Event, db: Session = Depends(get_db
     return {"message": "event counted"}
 
 
+# ================= FACE =================
 @router.post("/face_detection/{session_id}")
-def face_detection(session_id: int, data: schemas.FaceDetection, db: Session = Depends(get_db)):
+def face_detection(
+    session_id: int,
+    data: schemas.FaceDetection,
+    db: Session = Depends(get_db),
+    user: str = Depends(verify_token)   # ✅ PROTECT
+):
 
     session = db.query(models.ExamSession).filter(
         models.ExamSession.id == session_id
@@ -72,8 +95,13 @@ def face_detection(session_id: int, data: schemas.FaceDetection, db: Session = D
     }
 
 
+# ================= REPORT =================
 @router.get("/report/{session_id}")
-def report(session_id: int, db: Session = Depends(get_db)):
+def report(
+    session_id: int,
+    db: Session = Depends(get_db),
+    user: str = Depends(verify_token)   # ✅ PROTECT
+):
 
     session = db.query(models.ExamSession).filter(
         models.ExamSession.id == session_id
@@ -84,6 +112,7 @@ def report(session_id: int, db: Session = Depends(get_db)):
 
     return {
         "student_id": session.student_id,
+        "user": session.user,   # ✅ SHOW USER
         "tab_switch_count": session.tab_switch_count,
         "face_not_detected_count": session.face_not_detected_count,
         "multiple_face_count": session.multiple_face_count,
