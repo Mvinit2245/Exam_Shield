@@ -31,3 +31,6 @@ def verify_token(token: str = Depends(oauth2_scheme)):
     except Exception as e:
         print("TOKEN ERROR:", str(e))   # 🔥 DEBUG
         raise HTTPException(status_code=401, detail="Invalid token")
+    
+    
+      

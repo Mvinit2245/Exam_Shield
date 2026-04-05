@@ -120,3 +120,25 @@ def report(
         "multiple_face_count": session.multiple_face_count,
         "sound_detected_count": session.sound_detected_count
     }
+    
+@router.get("/admin/all_sessions")
+def get_all_sessions(
+    db: Session = Depends(get_db),
+    user: str = Depends(verify_token)
+):
+    sessions = db.query(models.ExamSession).all()
+
+    result = []
+
+    for s in sessions:
+        result.append({
+            "id": s.id,
+            "student_id": s.student_id,
+            "user": s.user,
+            "tab_switch_count": s.tab_switch_count,
+            "face_not_detected_count": s.face_not_detected_count,
+            "multiple_face_count": s.multiple_face_count,
+            "sound_detected_count": s.sound_detected_count
+        })
+
+    return result

@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Dashboard</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- jsPDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+</head>
+
+<body class="p-4">
+
+<h2>📊 Admin Dashboard</h2>
+
+<button class="btn btn-danger mb-3" onclick="logout()">Logout</button>
+<button class="btn btn-dark mb-3 ms-2" onclick="downloadPDF()">Download Report</button>
+
+<!-- TABLE -->
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>UserName</th>
+            <th>Student ID</th>
+            <th>Tab Switch</th>
+            <th>Face Missing</th>
+            <th>Multiple Faces</th>
+            <th>Noise</th>
+        </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+</table>
+
+<!-- CHART -->
+<canvas id="chart" height="100"></canvas>
+
+<script>
+
+const API = "http://127.0.0.1:8000/exam"
+
+function getHeaders() {
+    return {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + localStorage.getItem("token")
+    }
+}
+
+let chart;
+
+// ================= LOAD DATA =================
+async function loadData() {
+
+    const res = await fetch(`${API}/admin/all_sessions`, {
+        headers: getHeaders()
+    })
+
+    const data = await res.json()
+
+    let html = ""
+
+    let totalTab = 0
+    let totalFaceMissing = 0
+    let totalMulti = 0
+    let totalNoise = 0
+
+    data.forEach(s => {
+
+        // 🚨 CHEATING CONDITION
+        let isCheating =
+            s.tab_switch_count > 3 ||
+            s.face_not_detected_count > 3 ||
+            s.multiple_face_count > 1 ||
+            s.sound_detected_count > 3
+
+        html += `
+            <tr class="${isCheating ? 'table-danger' : ''}">
+                <td>${s.id}</td>
+                <td>${s.user}</td>
+                <td>${s.student_id}</td>
+                <td>${s.tab_switch_count}</td>
+                <td>${s.face_not_detected_count}</td>
+                <td>${s.multiple_face_count}</td>
+                <td>${s.sound_detected_count}</td>
+            </tr>
+        `
+
+        totalTab += s.tab_switch_count
+        totalFaceMissing += s.face_not_detected_count
+        totalMulti += s.multiple_face_count
+        totalNoise += s.sound_detected_count
+    })
+
+    document.getElementById("tableBody").innerHTML = html
+
+    updateChart(totalTab, totalFaceMissing, totalMulti, totalNoise)
+}
+
+
+// ================= CHART =================
+function updateChart(tab, face, multi, noise) {
+
+    const ctx = document.getElementById('chart')
+
+    if (chart) chart.destroy()
+
+    chart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['Tab Switch', 'Face Missing', 'Multiple Faces', 'Noise'],
+            datasets: [{
+                label: 'Cheating Activity',
+                data: [tab, face, multi, noise]
+            }]
+        }
+    })
+}
+
+
+// ================= AUTO REFRESH =================
+setInterval(loadData, 5000) // every 5 sec
+
+loadData()
+
+
+// ================= PDF DOWNLOAD =================
+async function downloadPDF() {
+
+    const { jsPDF } = window.jspdf
+    const doc = new jsPDF()
+
+    const res = await fetch(`${API}/admin/all_sessions`, {
+        headers: getHeaders()
+    })
+
+    const data = await res.json()
+
+    let y = 10
+
+    doc.text("Exam Report", 10, y)
+    y += 10
+
+    data.forEach(s => {
+        doc.text(
+            `User: ${s.user}, Student: ${s.student_id}, Tab: ${s.tab_switch_count}, Noise: ${s.sound_detected_count}`,
+            10,
+            y
+        )
+        y += 10
+    })
+
+    doc.save("report.pdf")
+}
+
+
+// ================= LOGOUT =================
+function logout() {
+    localStorage.clear()
+    window.location.href = "index.html"
+}
+
+</script>
+
+</body>
+</html>
