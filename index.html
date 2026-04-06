@@ -32,6 +32,11 @@
         <input id="confirmPassword" type="password" class="form-control mt-2" placeholder="Confirm Password">
 
         <button class="btn btn-success mt-3" onclick="register()">Register</button>
+
+        <p class="mt-3 text-center">
+    Already have account? 
+    <a href="#" onclick="showLogin()">Login</a>
+</p>
     </div>
 </div>
 
@@ -44,6 +49,11 @@
         <input id="password" type="password" class="form-control mt-2" placeholder="Password">
 
         <button class="btn btn-primary mt-3" onclick="login()">Login</button>
+
+        <p class="mt-3 text-center">
+    Not registered? 
+    <a href="#" onclick="showRegister()">Create Account</a>
+</p>
     </div>
 </div>
 
@@ -120,14 +130,32 @@
 <script>
 
 const API = "http://127.0.0.1:8000"
+
 let sessionId = null
 let model = null
 let videoStream = null
 
-// ================= AUTO LOGIN =================
+// ================= INITIAL LOAD =================
 window.onload = () => {
+
     const token = localStorage.getItem("token")
-    if (token) showApp()
+
+    if (token) {
+        showApp()
+
+        // load user details
+        const user = JSON.parse(localStorage.getItem("user"))
+
+        if (user) {
+            document.getElementById("uName").innerText = user.name
+            document.getElementById("uUsername").innerText = user.username
+            document.getElementById("uEmail").innerText = user.email
+            document.getElementById("uMobile").innerText = user.mobile
+        }
+
+    } else {
+        showLogin()
+    }
 }
 
 // ================= HEADERS =================
@@ -136,6 +164,25 @@ function getHeaders() {
         "Content-Type": "application/json",
         "Authorization": "Bearer " + localStorage.getItem("token")
     }
+}
+
+// ================= UI SWITCH =================
+function showLogin() {
+    document.getElementById("loginSection").style.display = "block"
+    document.getElementById("registerSection").style.display = "none"
+    document.getElementById("appSection").style.display = "none"
+}
+
+function showRegister() {
+    document.getElementById("loginSection").style.display = "none"
+    document.getElementById("registerSection").style.display = "block"
+    document.getElementById("appSection").style.display = "none"
+}
+
+function showApp() {
+    document.getElementById("loginSection").style.display = "none"
+    document.getElementById("registerSection").style.display = "none"
+    document.getElementById("appSection").style.display = "block"
 }
 
 // ================= REGISTER =================
@@ -162,7 +209,10 @@ async function register() {
     })
 
     const result = await res.json()
+
     alert(result.message || result.detail)
+
+    showLogin()
 }
 
 // ================= LOGIN =================
@@ -184,8 +234,9 @@ async function login() {
         if (data.access_token) {
 
             localStorage.setItem("token", data.access_token)
+            localStorage.setItem("user", JSON.stringify(data.user))
 
-            // ✅ SHOW USER DETAILS
+            // show user data
             document.getElementById("uName").innerText = data.user.name
             document.getElementById("uUsername").innerText = data.user.username
             document.getElementById("uEmail").innerText = data.user.email
@@ -210,14 +261,7 @@ function logout() {
         videoStream.getTracks().forEach(track => track.stop())
     }
 
-    location.reload()
-}
-
-// ================= UI SWITCH =================
-function showApp() {
-    document.getElementById("registerSection").style.display = "none"
-    document.getElementById("loginSection").style.display = "none"
-    document.getElementById("appSection").style.display = "block"
+    showLogin()
 }
 
 // ================= START EXAM =================
