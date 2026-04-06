@@ -19,15 +19,31 @@
 
 <body>
 
+<!-- ✅ REGISTER SECTION -->
+<div class="container mt-3" id="registerSection">
+    <div class="card p-4">
+        <h3 class="text-center">Register</h3>
+
+        <input id="name" class="form-control mt-2" placeholder="Name">
+        <input id="regUsername" class="form-control mt-2" placeholder="Username">
+        <input id="email" class="form-control mt-2" placeholder="Email">
+        <input id="mobile" class="form-control mt-2" placeholder="Mobile No">
+        <input id="regPassword" type="password" class="form-control mt-2" placeholder="Password">
+        <input id="confirmPassword" type="password" class="form-control mt-2" placeholder="Confirm Password">
+
+        <button class="btn btn-success mt-3" onclick="register()">Register</button>
+    </div>
+</div>
+
 <!-- ✅ LOGIN SECTION -->
-<div class="container mt-5" id="loginSection">
+<div class="container mt-3" id="loginSection">
     <div class="card p-4">
         <h3 class="text-center">Login</h3>
 
         <input id="username" class="form-control mt-2" placeholder="Username">
         <input id="password" type="password" class="form-control mt-2" placeholder="Password">
 
-        <button class="btn btn-success mt-3" onclick="login()">Login</button>
+        <button class="btn btn-primary mt-3" onclick="login()">Login</button>
     </div>
 </div>
 
@@ -38,7 +54,16 @@
 
     <button class="btn btn-danger float-end" onclick="logout()">Logout</button>
 
-    <h2 class="text-center"> Online Exam Proctoring</h2>
+    <h2 class="text-center">Online Exam Proctoring</h2>
+
+    <!-- ✅ USER DETAILS -->
+    <div class="card p-3">
+        <h5>User Details</h5>
+        <p>Name: <span id="uName"></span></p>
+        <p>Username: <span id="uUsername"></span></p>
+        <p>Email: <span id="uEmail"></span></p>
+        <p>Mobile: <span id="uMobile"></span></p>
+    </div>
 
     <div class="card p-4">
 
@@ -94,19 +119,18 @@
 
 <script>
 
-const API = "http://127.0.0.1:8000/exam"
-
+const API = "http://127.0.0.1:8000"
 let sessionId = null
 let model = null
 let videoStream = null
 
-// ✅ AUTO LOGIN CHECK
+// ================= AUTO LOGIN =================
 window.onload = () => {
     const token = localStorage.getItem("token")
     if (token) showApp()
 }
 
-// ✅ HEADERS
+// ================= HEADERS =================
 function getHeaders() {
     return {
         "Content-Type": "application/json",
@@ -114,24 +138,61 @@ function getHeaders() {
     }
 }
 
-// ✅ LOGIN (FIXED)
+// ================= REGISTER =================
+async function register() {
+
+    const data = {
+        name: document.getElementById("name").value,
+        username: document.getElementById("regUsername").value,
+        email: document.getElementById("email").value,
+        mobile: document.getElementById("mobile").value,
+        password: document.getElementById("regPassword").value,
+        confirm_password: document.getElementById("confirmPassword").value
+    }
+
+    if (data.password !== data.confirm_password) {
+        alert("Passwords do not match")
+        return
+    }
+
+    const res = await fetch(`${API}/register`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(data)
+    })
+
+    const result = await res.json()
+    alert(result.message || result.detail)
+}
+
+// ================= LOGIN =================
 async function login() {
 
     const username = document.getElementById("username").value
     const password = document.getElementById("password").value
 
     try {
-        const res = await fetch("http://127.0.0.1:8000/login", {
+
+        const res = await fetch(`${API}/login`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ username, password })
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({username, password})
         })
 
         const data = await res.json()
 
         if (data.access_token) {
+
             localStorage.setItem("token", data.access_token)
+
+            // ✅ SHOW USER DETAILS
+            document.getElementById("uName").innerText = data.user.name
+            document.getElementById("uUsername").innerText = data.user.username
+            document.getElementById("uEmail").innerText = data.user.email
+            document.getElementById("uMobile").innerText = data.user.mobile
+
             showApp()
+
         } else {
             alert("Login failed")
         }
@@ -141,9 +202,9 @@ async function login() {
     }
 }
 
-// ✅ LOGOUT
+// ================= LOGOUT =================
 function logout() {
-    localStorage.removeItem("token")
+    localStorage.clear()
 
     if (videoStream) {
         videoStream.getTracks().forEach(track => track.stop())
@@ -152,65 +213,49 @@ function logout() {
     location.reload()
 }
 
-// ✅ UI SWITCH
+// ================= UI SWITCH =================
 function showApp() {
+    document.getElementById("registerSection").style.display = "none"
     document.getElementById("loginSection").style.display = "none"
     document.getElementById("appSection").style.display = "block"
 }
 
-// ✅ START EXAM
+// ================= START EXAM =================
 async function startExam() {
 
     const studentId = document.getElementById("studentId").value
 
-    if (!studentId) {
-        alert("Enter student ID")
-        return
-    }
+    const res = await fetch(`${API}/exam/start_exam`, {
+        method: "POST",
+        headers: getHeaders(),
+        body: JSON.stringify({student_id: studentId})
+    })
 
-    try {
+    const data = await res.json()
 
-        const res = await fetch(`${API}/start_exam`, {
-            method: "POST",
-            headers: getHeaders(),
-            body: JSON.stringify({
-                student_id: studentId
-            })
-        })
+    sessionId = data.session_id
+    document.getElementById("sessionId").innerText = sessionId
 
-        const data = await res.json()
+    await startCamera()
+    await loadModel()
 
-        sessionId = data.session_id
-
-        document.getElementById("sessionId").innerText = sessionId
-
-        await startCamera()
-        await loadModel()
-
-        startFaceDetection()
-        startNoiseDetection()
-
-    } catch (err) {
-        console.error(err)
-        alert("Backend connection failed")
-    }
+    startFaceDetection()
+    startNoiseDetection()
 }
 
-// CAMERA
+// ================= CAMERA =================
 async function startCamera() {
     videoStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-    const video = document.getElementById("video")
-    video.srcObject = videoStream
+    document.getElementById("video").srcObject = videoStream
 }
 
-// MODEL
+// ================= MODEL =================
 async function loadModel() {
     model = await blazeface.load()
 }
 
-// FACE DETECTION
+// ================= FACE =================
 function startFaceDetection() {
-
     const video = document.getElementById("video")
 
     setInterval(async () => {
@@ -220,23 +265,8 @@ function startFaceDetection() {
         const predictions = await model.estimateFaces(video, false)
         const faceCount = predictions.length
 
-        const faceStatus = document.getElementById("faceStatus")
-
-        if (faceCount === 0) {
-            faceStatus.innerText = "Face Missing"
-            faceStatus.className = "badge bg-danger"
-        }
-        else if (faceCount > 1) {
-            faceStatus.innerText = "Multiple Faces"
-            faceStatus.className = "badge bg-warning"
-        }
-        else {
-            faceStatus.innerText = "Single Face"
-            faceStatus.className = "badge bg-success"
-        }
-
         if (sessionId) {
-            fetch(`${API}/face_detection/${sessionId}`, {
+            fetch(`${API}/exam/face_detection/${sessionId}`, {
                 method: "POST",
                 headers: getHeaders(),
                 body: JSON.stringify({ face_count: faceCount })
@@ -246,14 +276,14 @@ function startFaceDetection() {
     }, 3000)
 }
 
-// NOISE
+// ================= NOISE =================
 function startNoiseDetection() {
 
     const audioContext = new AudioContext()
-    const microphone = audioContext.createMediaStreamSource(videoStream)
+    const mic = audioContext.createMediaStreamSource(videoStream)
     const analyser = audioContext.createAnalyser()
 
-    microphone.connect(analyser)
+    mic.connect(analyser)
 
     const dataArray = new Uint8Array(analyser.frequencyBinCount)
 
@@ -262,10 +292,8 @@ function startNoiseDetection() {
         analyser.getByteFrequencyData(dataArray)
         let volume = dataArray.reduce((a, b) => a + b) / dataArray.length
 
-        document.getElementById("noiseLevel").innerText = volume.toFixed(2)
-
         if (volume > 60 && sessionId) {
-            fetch(`${API}/event/${sessionId}`, {
+            fetch(`${API}/exam/event/${sessionId}`, {
                 method: "POST",
                 headers: getHeaders(),
                 body: JSON.stringify({ event_type: "NOISE" })
@@ -275,10 +303,10 @@ function startNoiseDetection() {
     }, 2000)
 }
 
-// TAB SWITCH
+// ================= TAB =================
 document.addEventListener("visibilitychange", function () {
     if (document.hidden && sessionId) {
-        fetch(`${API}/event/${sessionId}`, {
+        fetch(`${API}/exam/event/${sessionId}`, {
             method: "POST",
             headers: getHeaders(),
             body: JSON.stringify({ event_type: "TAB_SWITCH" })
@@ -286,13 +314,11 @@ document.addEventListener("visibilitychange", function () {
     }
 })
 
-// REPORT
+// ================= REPORT =================
 async function getReport() {
 
-    const res = await fetch(`${API}/report/${sessionId}`, {
-        headers: {
-            "Authorization": "Bearer " + localStorage.getItem("token")
-        }
+    const res = await fetch(`${API}/exam/report/${sessionId}`, {
+        headers: getHeaders()
     })
 
     const data = await res.json()

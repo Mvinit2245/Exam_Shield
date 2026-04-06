@@ -4,6 +4,7 @@ from database import SessionLocal
 import models
 from auth import create_token
 from pydantic import BaseModel
+import schemas
 
 router = APIRouter()
 
@@ -22,22 +23,28 @@ def get_db():
 
 # ✅ REGISTER
 @router.post("/register")
-def register(data: UserData, db: Session = Depends(get_db)):
+def register(data: schemas.RegisterUser, db: Session = Depends(get_db)):
+
+    if data.password != data.confirm_password:
+        raise HTTPException(status_code=400, detail="Passwords do not match")
 
     user = db.query(models.User).filter(models.User.username == data.username).first()
 
     if user:
-        raise HTTPException(status_code=400, detail="User already exists")
+        raise HTTPException(status_code=400, detail="Username already exists")
 
     new_user = models.User(
+        name=data.name,
         username=data.username,
+        email=data.email,
+        mobile=data.mobile,
         password=data.password
     )
 
     db.add(new_user)
     db.commit()
 
-    return {"message": "User created"}
+    return {"message": "User registered successfully"}
 
 # ✅ LOGIN (FIXED)
 @router.post("/login")
@@ -50,4 +57,12 @@ def login(data: UserData, db: Session = Depends(get_db)):
 
     token = create_token({"sub": user.username})
 
-    return {"access_token": token}
+    return {
+        "access_token": token,
+        "user": {
+            "name": user.name,
+            "username": user.username,
+            "email": user.email,
+            "mobile": user.mobile
+        }
+    }

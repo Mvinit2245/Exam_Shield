@@ -11,3 +11,11 @@ class Event(BaseModel):
 
 class FaceDetection(BaseModel):
     face_count: int
+    
+class RegisterUser(BaseModel):
+    name: str
+    username: str
+    email: str
+    mobile: str
+    password: str
+    confirm_password: str
