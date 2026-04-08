@@ -12,6 +12,8 @@ class Event(BaseModel):
 class FaceDetection(BaseModel):
     face_count: int
     
+from pydantic import BaseModel
+
 class RegisterUser(BaseModel):
     name: str
     username: str
@@ -19,3 +21,8 @@ class RegisterUser(BaseModel):
     mobile: str
     password: str
     confirm_password: str
+
+
+class LoginUser(BaseModel):
+    username: str
+    password: str

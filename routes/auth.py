@@ -1,37 +1,24 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from database import SessionLocal
+from database import get_db
 import models
-from auth import create_token
-from pydantic import BaseModel
 import schemas
+from auth import create_token
 
 router = APIRouter()
 
-# ✅ REQUEST MODEL
-class UserData(BaseModel):
-    username: str
-    password: str
-
-# DB
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-# ✅ REGISTER
+# ================= REGISTER =================
 @router.post("/register")
 def register(data: schemas.RegisterUser, db: Session = Depends(get_db)):
 
-    if data.password != data.confirm_password:
-        raise HTTPException(status_code=400, detail="Passwords do not match")
-
+    # check existing user
     user = db.query(models.User).filter(models.User.username == data.username).first()
 
     if user:
-        raise HTTPException(status_code=400, detail="Username already exists")
+        raise HTTPException(status_code=400, detail="User already exists")
+
+    if data.password != data.confirm_password:
+        raise HTTPException(status_code=400, detail="Passwords do not match")
 
     new_user = models.User(
         name=data.name,
@@ -46,9 +33,10 @@ def register(data: schemas.RegisterUser, db: Session = Depends(get_db)):
 
     return {"message": "User registered successfully"}
 
-# ✅ LOGIN (FIXED)
+
+# ================= LOGIN =================
 @router.post("/login")
-def login(data: UserData, db: Session = Depends(get_db)):
+def login(data: schemas.LoginUser, db: Session = Depends(get_db)):
 
     user = db.query(models.User).filter(models.User.username == data.username).first()
 
