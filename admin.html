@@ -5,12 +5,21 @@
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
-    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-    <!-- jsPDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
+    <style>
+        body { background:#f5f6fa; }
+
+        .card {
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .high { background:#ffcccc !important; }
+        .medium { background:#fff3cd !important; }
+        .low { background:#d4edda !important; }
+    </style>
 </head>
 
 <body class="p-4">
@@ -20,24 +29,28 @@
 <button class="btn btn-danger mb-3" onclick="logout()">Logout</button>
 <button class="btn btn-dark mb-3 ms-2" onclick="downloadPDF()">Download Report</button>
 
-<!-- TABLE -->
-<table class="table table-bordered">
-    <thead>
+<div class="card p-3 mb-4">
+<table class="table table-hover text-center">
+    <thead class="table-dark">
         <tr>
             <th>ID</th>
-            <th>UserName</th>
+            <th>User</th>
             <th>Student ID</th>
-            <th>Tab Switch</th>
+            <th>Tab</th>
             <th>Face Missing</th>
-            <th>Multiple Faces</th>
+            <th>Multi Face</th>
             <th>Noise</th>
+            <th>Cheating %</th>
         </tr>
     </thead>
     <tbody id="tableBody"></tbody>
 </table>
+</div>
 
-<!-- CHART -->
-<canvas id="chart" height="100"></canvas>
+<div class="card p-4">
+    <h5 class="text-center">📊 Overall Cheating Analysis</h5>
+    <canvas id="chart"></canvas>
+</div>
 
 <script>
 
@@ -45,12 +58,26 @@ const API = "http://127.0.0.1:8000/exam"
 
 function getHeaders() {
     return {
-        "Content-Type": "application/json",
         "Authorization": "Bearer " + localStorage.getItem("token")
     }
 }
 
 let chart;
+
+// ================= CHEATING CALC =================
+function calculateCheating(s) {
+
+    let score =
+        (s.tab_switch_count * 2) +
+        (s.face_not_detected_count * 3) +
+        (s.multiple_face_count * 5) +
+        (s.sound_detected_count * 2)
+
+    let max = 50 // adjust max
+
+    return Math.min((score / max) * 100, 100).toFixed(1)
+}
+
 
 // ================= LOAD DATA =================
 async function loadData() {
@@ -61,43 +88,50 @@ async function loadData() {
 
     const data = await res.json()
 
+    // 🔥 SORT DESCENDING (HIGH → LOW CHEATING)
+data.sort((a, b) => {
+    return calculateCheating(b) - calculateCheating(a)
+})
+
     let html = ""
 
     let totalTab = 0
-    let totalFaceMissing = 0
+    let totalFace = 0
     let totalMulti = 0
     let totalNoise = 0
 
     data.forEach(s => {
 
-        // 🚨 CHEATING CONDITION
-        let isCheating =
-            s.tab_switch_count > 3 ||
-            s.face_not_detected_count > 3 ||
-            s.multiple_face_count > 1 ||
-            s.sound_detected_count > 3
+        let percent = calculateCheating(s)
+
+        let rowClass = ""
+
+if (percent > 10) {
+    rowClass = "table-danger"   // Bootstrap red
+}
 
         html += `
-            <tr class="${isCheating ? 'table-danger' : ''}">
+            <tr class="${rowClass}">
                 <td>${s.id}</td>
-                <td>${s.user}</td>
+                <td>${s.user || '-'}</td>
                 <td>${s.student_id}</td>
                 <td>${s.tab_switch_count}</td>
                 <td>${s.face_not_detected_count}</td>
                 <td>${s.multiple_face_count}</td>
                 <td>${s.sound_detected_count}</td>
+                <td><b>${percent}%</b></td>
             </tr>
         `
 
         totalTab += s.tab_switch_count
-        totalFaceMissing += s.face_not_detected_count
+        totalFace += s.face_not_detected_count
         totalMulti += s.multiple_face_count
         totalNoise += s.sound_detected_count
     })
 
     document.getElementById("tableBody").innerHTML = html
 
-    updateChart(totalTab, totalFaceMissing, totalMulti, totalNoise)
+    updateChart(totalTab, totalFace, totalMulti, totalNoise)
 }
 
 
@@ -109,25 +143,36 @@ function updateChart(tab, face, multi, noise) {
     if (chart) chart.destroy()
 
     chart = new Chart(ctx, {
-        type: 'bar',
+        type: 'doughnut',
         data: {
             labels: ['Tab Switch', 'Face Missing', 'Multiple Faces', 'Noise'],
             datasets: [{
-                label: 'Cheating Activity',
-                data: [tab, face, multi, noise]
+                data: [tab, face, multi, noise],
+                backgroundColor: [
+                    '#ff6384',
+                    '#36a2eb',
+                    '#ffce56',
+                    '#4bc0c0'
+                ]
             }]
+        },
+        options: {
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
         }
     })
 }
 
 
 // ================= AUTO REFRESH =================
-setInterval(loadData, 5000) // every 5 sec
-
+setInterval(loadData, 5000)
 loadData()
 
 
-// ================= PDF DOWNLOAD =================
+// ================= PDF =================
 async function downloadPDF() {
 
     const { jsPDF } = window.jspdf
@@ -140,13 +185,15 @@ async function downloadPDF() {
     const data = await res.json()
 
     let y = 10
-
     doc.text("Exam Report", 10, y)
     y += 10
 
     data.forEach(s => {
+
+        let percent = calculateCheating(s)
+
         doc.text(
-            `User: ${s.user}, Student: ${s.student_id}, Tab: ${s.tab_switch_count}, Noise: ${s.sound_detected_count}`,
+            `User: ${s.user} | Student: ${s.student_id} | Cheating: ${percent}%`,
             10,
             y
         )
@@ -160,7 +207,7 @@ async function downloadPDF() {
 // ================= LOGOUT =================
 function logout() {
     localStorage.clear()
-    window.location.href = "index.html"
+    window.location.href = "login.html"
 }
 
 </script>
