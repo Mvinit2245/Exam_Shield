@@ -10,6 +10,9 @@
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface"></script>
 
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils"></script>
+
     <style>
         body { background: #f5f6fa; }
         video { width: 100%; border-radius: 10px; }
@@ -93,11 +96,15 @@
         <div class="col-md-6">
             <div class="card p-3">
                 <h5>Camera Monitor</h5>
-                <video id="video" autoplay playsinline muted></video>
+                <div style="position:relative;">
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="canvas" style="position:absolute; top:0; left:0;"></canvas>
+</div>
 
                 <p class="mt-3">
                     Face Status :
                     <span id="faceStatus" class="badge bg-secondary">Waiting</span>
+                    <p style="color:red;" id="movementAlert"></p>
                 </p>
             </div>
         </div>
@@ -130,9 +137,53 @@
 
 const API = "http://127.0.0.1:8000"
 
+let faceMesh
+let lastDirection = "CENTER"
+
 let sessionId = null
 let model = null
 let videoStream = null
+let prevFace = null
+
+// Tab Detection code
+
+let lastTabState = false
+
+function sendTabEvent() {
+    if (!sessionId) return
+
+    fetch(`${API}/exam/event/${sessionId}`, {
+        method: "POST",
+        headers: getHeaders(),
+        body: JSON.stringify({ event_type: "TAB_SWITCH" })
+    })
+}
+
+// TAB SWITCH
+document.addEventListener("visibilitychange", () => {
+    if (document.hidden && !lastTabState) {
+        lastTabState = true
+        sendTabEvent()
+    }
+    if (!document.hidden) {
+        lastTabState = false
+    }
+})
+
+// ALT+TAB / MINIMIZE
+window.addEventListener("blur", () => {
+    if (!lastTabState) {
+        lastTabState = true
+        sendTabEvent()
+    }
+})
+
+// RETURN
+window.addEventListener("focus", () => {
+    lastTabState = false
+})
+
+console.log("TAB SCRIPT LOADED")
 
 // INIT
 window.onload = () => {
@@ -301,44 +352,40 @@ async function startCamera() {
 }
 
 // MODEL
-async function loadModel() {
-    model = await blazeface.load()
+function loadModel() {
+
+    faceMesh = new FaceMesh({
+        locateFile: (file) => {
+            return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+        }
+    })
+
+    faceMesh.setOptions({
+        maxNumFaces: 5,
+        refineLandmarks: true,
+        minDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.5
+    })
+
+    faceMesh.onResults(onResults)
+
+    const camera = new Camera(video, {
+        onFrame: async () => {
+            await faceMesh.send({ image: video })
+        },
+        width: 640,
+        height: 480
+    })
+
+    camera.start()
 }
 
 // FACE DETECTION
 function startFaceDetection() {
+    // MediaPipe handles detection automatically
 
-    setInterval(async () => {
-
-        if (!model || !video.srcObject) return
-
-        const predictions = await model.estimateFaces(video, false)
-        const faceCount = predictions.length
-
-        if (faceCount === 0) {
-            faceStatus.innerText = "Face Missing"
-            faceStatus.className = "badge bg-danger"
-        }
-        else if (faceCount > 1) {
-            faceStatus.innerText = "Multiple Faces"
-            faceStatus.className = "badge bg-warning"
-        }
-        else {
-            faceStatus.innerText = "Single Face"
-            faceStatus.className = "badge bg-success"
-        }
-
-        if (sessionId) {
-            fetch(`${API}/exam/face_detection/${sessionId}`, {
-                method: "POST",
-                headers: getHeaders(),
-                body: JSON.stringify({ face_count: faceCount })
-            })
-        }
-
-    }, 3000)
+    
 }
-
 // NOISE DETECTION
 function startNoiseDetection() {
 
@@ -358,7 +405,7 @@ function startNoiseDetection() {
 
         noiseLevel.innerText = volume.toFixed(2)
 
-        if (volume > 60) {
+        if (volume > 20) {
 
             noiseStatus.innerText = "Noise Detected"
             noiseStatus.className = "badge bg-danger"
@@ -380,15 +427,220 @@ function startNoiseDetection() {
     }, 2000)
 }
 
-// TAB SWITCH
-document.addEventListener("visibilitychange", () => {
-    if (document.hidden && sessionId) {
-        fetch(`${API}/exam/event/${sessionId}`, {
-            method: "POST",
-            headers: getHeaders(),
-            body: JSON.stringify({ event_type: "TAB_SWITCH" })
-        })
+//main logic
+
+function onResults(results) {
+
+    const canvas = document.getElementById("canvas")
+    const ctx = canvas.getContext("2d")
+
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+    // ================= FACE COUNT =================
+    const faceCount = results.multiFaceLandmarks 
+        ? results.multiFaceLandmarks.length 
+        : 0
+
+
+    // ================= NO FACE =================
+    if (faceCount === 0) {
+
+        faceStatus.innerText = "Face Missing"
+        faceStatus.className = "badge bg-danger"
+
+        if (sessionId && lastDirection !== "MISSING") {
+
+            fetch(`${API}/exam/face_detection/${sessionId}`, {
+                method: "POST",
+                headers: getHeaders(),
+                body: JSON.stringify({
+                    face_count: 0,
+                    look_direction: "CENTER"
+                })
+            })
+
+            lastDirection = "MISSING"
+        }
+
+        return
     }
+
+
+    // ================= MULTIPLE FACES =================
+    if (faceCount > 1) {
+
+        faceStatus.innerText = "Multiple Faces Detected"
+        faceStatus.className = "badge bg-warning"
+
+        if (sessionId && lastDirection !== "MULTIPLE") {
+
+            fetch(`${API}/exam/face_detection/${sessionId}`, {
+                method: "POST",
+                headers: getHeaders(),
+                body: JSON.stringify({
+                    face_count: faceCount,
+                    look_direction: "CENTER"
+                })
+            })
+
+            lastDirection = "MULTIPLE"
+        }
+
+        return
+    }
+
+
+    // ================= SINGLE FACE =================
+    const landmarks = results.multiFaceLandmarks[0]
+
+    // DRAW POINTS
+    landmarks.forEach(point => {
+        ctx.beginPath()
+        ctx.arc(point.x * canvas.width, point.y * canvas.height, 2, 0, 2 * Math.PI)
+        ctx.fillStyle = "blue"
+        ctx.fill()
+    })
+
+    // DRAW FACE BOX
+    const xs = landmarks.map(p => p.x * canvas.width)
+    const ys = landmarks.map(p => p.y * canvas.height)
+
+    const minX = Math.min(...xs)
+    const minY = Math.min(...ys)
+    const maxX = Math.max(...xs)
+    const maxY = Math.max(...ys)
+
+    ctx.strokeStyle = "green"
+    ctx.lineWidth = 3
+    ctx.strokeRect(minX, minY, maxX - minX, maxY - minY)
+
+    faceStatus.innerText = "Face Detected"
+    faceStatus.className = "badge bg-success"
+
+
+    // ================= EYE GAZE =================
+    const leftEye = landmarks[33]
+    const rightEye = landmarks[263]
+    const nose = landmarks[1]
+
+    const eyeCenterX = (leftEye.x + rightEye.x) / 2
+
+    let direction = "CENTER"
+
+    if (nose.x < eyeCenterX - 0.02) {
+        direction = "LEFT"
+    } 
+    else if (nose.x > eyeCenterX + 0.02) {
+        direction = "RIGHT"
+    }
+
+
+    // ================= SEND ONLY WHEN CHANGED =================
+    if (sessionId && direction !== lastDirection) {
+
+        if (direction !== "CENTER") {
+
+            movementAlert.innerText = `⚠ Looking ${direction}`
+            movementAlert.style.color = "red"
+
+            fetch(`${API}/exam/face_detection/${sessionId}`, {
+                method: "POST",
+                headers: getHeaders(),
+                body: JSON.stringify({
+                    face_count: 1,
+                    look_direction: direction
+                })
+            })
+
+        } else {
+            movementAlert.innerText = ""
+        }
+
+        lastDirection = direction
+    }
+}
+
+    // ================= DRAW FACE POINTS =================
+    landmarks.forEach(point => {
+        ctx.beginPath()
+        ctx.arc(point.x * canvas.width, point.y * canvas.height, 2, 0, 2 * Math.PI)
+        ctx.fillStyle = "blue"
+        ctx.fill()
+    })
+
+    // ================= FACE BOX =================
+    const xs = landmarks.map(p => p.x * canvas.width)
+    const ys = landmarks.map(p => p.y * canvas.height)
+
+    const minX = Math.min(...xs)
+    const minY = Math.min(...ys)
+    const maxX = Math.max(...xs)
+    const maxY = Math.max(...ys)
+
+    ctx.strokeStyle = "green"
+    ctx.lineWidth = 3
+    ctx.strokeRect(minX, minY, maxX - minX, maxY - minY)
+
+    faceStatus.innerText = "Face Detected"
+    faceStatus.className = "badge bg-success"
+
+    // ================= EYE GAZE DETECTION =================
+    // LEFT EYE (landmarks)
+    const leftEye = landmarks[33]
+    const rightEye = landmarks[263]
+    const nose = landmarks[1]
+
+    const eyeCenterX = (leftEye.x + rightEye.x) / 2
+
+    let direction = "CENTER"
+    
+    let lastSentTime = 0
+
+    if (nose.x < eyeCenterX - 0.02) {
+        direction = "LEFT"
+    } 
+    else if (nose.x > eyeCenterX + 0.02) {
+        direction = "RIGHT"
+    }
+
+    // ================= CHEATING DETECTION =================
+    const now = Date.now()
+
+// ================= UI =================
+if (direction !== "CENTER") {
+    movementAlert.innerText = `⚠ Looking ${direction}`
+    movementAlert.style.color = "red"
+} else {
+    movementAlert.innerText = ""
+}
+
+// ================= COUNT ONLY ON CHANGE =================
+if (sessionId && direction !== "CENTER" && direction !== lastDirection) {
+
+    fetch(`${API}/exam/face_detection/${sessionId}`, {
+        method: "POST",
+        headers: getHeaders(),
+        body: JSON.stringify({
+            face_count: 1,
+            look_direction: direction
+        })
+    }).catch(err => console.log(err))
+}
+
+// ✅ ALWAYS update lastDirection
+lastDirection = direction
+
+
+
+
+
+// 🟢 USER RETURNS
+window.addEventListener("focus", () => {
+    console.log("WINDOW FOCUS")
+    lastTabState = false
 })
 
 // REPORT

@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from typing import Optional
 
 
 class StartExam(BaseModel):
@@ -11,6 +12,7 @@ class Event(BaseModel):
 
 class FaceDetection(BaseModel):
     face_count: int
+    look_direction: str | None = None   # NEW
     
 from pydantic import BaseModel
 

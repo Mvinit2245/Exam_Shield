@@ -19,6 +19,9 @@ class ExamSession(Base):
     face_not_detected_count = Column(Integer, default=0)
     multiple_face_count = Column(Integer, default=0)
     sound_detected_count = Column(Integer, default=0)
+    
+    left_look_count = Column(Integer, default=0)
+    right_look_count = Column(Integer, default=0)
 
 
 # ================= USER =================

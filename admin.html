@@ -5,8 +5,14 @@
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
+    <!-- Chart -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- jsPDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <!-- AutoTable for table PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
 
     <style>
         body { background:#f5f6fa; }
@@ -16,21 +22,26 @@
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         }
 
-        .high { background:#ffcccc !important; }
-        .medium { background:#fff3cd !important; }
-        .low { background:#d4edda !important; }
+        .table-danger {
+            background:#ffcccc !important;
+        }
+
+        h2 {
+            font-weight: bold;
+        }
     </style>
 </head>
 
 <body class="p-4">
 
-<h2>📊 Admin Dashboard</h2>
+<h2 class="mb-3">📊 Admin Dashboard</h2>
 
 <button class="btn btn-danger mb-3" onclick="logout()">Logout</button>
 <button class="btn btn-dark mb-3 ms-2" onclick="downloadPDF()">Download Report</button>
 
 <div class="card p-3 mb-4">
-<table class="table table-hover text-center">
+
+<table class="table table-hover text-center" id="reportTable">
     <thead class="table-dark">
         <tr>
             <th>ID</th>
@@ -40,11 +51,14 @@
             <th>Face Missing</th>
             <th>Multi Face</th>
             <th>Noise</th>
+            <th>Look Left</th>
+            <th>Look Right</th>
             <th>Cheating %</th>
         </tr>
     </thead>
     <tbody id="tableBody"></tbody>
 </table>
+
 </div>
 
 <div class="card p-4">
@@ -64,16 +78,18 @@ function getHeaders() {
 
 let chart;
 
-// ================= CHEATING CALC =================
+// ================= CHEATING FORMULA =================
 function calculateCheating(s) {
 
     let score =
         (s.tab_switch_count * 2) +
         (s.face_not_detected_count * 3) +
         (s.multiple_face_count * 5) +
-        (s.sound_detected_count * 2)
+        (s.sound_detected_count * 2) +
+        (s.left_look_count * 3) +
+        (s.right_look_count * 3)
 
-    let max = 50 // adjust max
+    let max = 80
 
     return Math.min((score / max) * 100, 100).toFixed(1)
 }
@@ -88,10 +104,8 @@ async function loadData() {
 
     const data = await res.json()
 
-    // 🔥 SORT DESCENDING (HIGH → LOW CHEATING)
-data.sort((a, b) => {
-    return calculateCheating(b) - calculateCheating(a)
-})
+    // ✅ SORT DESCENDING (HIGH → LOW)
+    data.sort((a, b) => calculateCheating(b) - calculateCheating(a))
 
     let html = ""
 
@@ -99,16 +113,14 @@ data.sort((a, b) => {
     let totalFace = 0
     let totalMulti = 0
     let totalNoise = 0
+    let totalLeft = 0
+    let totalRight = 0
 
     data.forEach(s => {
 
         let percent = calculateCheating(s)
 
-        let rowClass = ""
-
-if (percent > 10) {
-    rowClass = "table-danger"   // Bootstrap red
-}
+        let rowClass = percent > 10 ? "table-danger" : ""
 
         html += `
             <tr class="${rowClass}">
@@ -119,6 +131,8 @@ if (percent > 10) {
                 <td>${s.face_not_detected_count}</td>
                 <td>${s.multiple_face_count}</td>
                 <td>${s.sound_detected_count}</td>
+                <td>${s.left_look_count || 0}</td>
+                <td>${s.right_look_count || 0}</td>
                 <td><b>${percent}%</b></td>
             </tr>
         `
@@ -127,39 +141,37 @@ if (percent > 10) {
         totalFace += s.face_not_detected_count
         totalMulti += s.multiple_face_count
         totalNoise += s.sound_detected_count
+        totalLeft += s.left_look_count || 0
+        totalRight += s.right_look_count || 0
     })
 
     document.getElementById("tableBody").innerHTML = html
 
-    updateChart(totalTab, totalFace, totalMulti, totalNoise)
+    updateChart(totalTab, totalFace, totalMulti, totalNoise, totalLeft, totalRight)
 }
 
 
 // ================= CHART =================
-function updateChart(tab, face, multi, noise) {
+function updateChart(tab, face, multi, noise, left, right) {
 
     const ctx = document.getElementById('chart')
 
     if (chart) chart.destroy()
 
     chart = new Chart(ctx, {
-        type: 'doughnut',
+        type: 'bar',
         data: {
-            labels: ['Tab Switch', 'Face Missing', 'Multiple Faces', 'Noise'],
+            labels: ['Tab', 'Face Missing', 'Multi Face', 'Noise', 'Look Left', 'Look Right'],
             datasets: [{
-                data: [tab, face, multi, noise],
-                backgroundColor: [
-                    '#ff6384',
-                    '#36a2eb',
-                    '#ffce56',
-                    '#4bc0c0'
-                ]
+                label: 'Cheating Activity',
+                data: [tab, face, multi, noise, left, right]
             }]
         },
         options: {
+            responsive: true,
             plugins: {
                 legend: {
-                    position: 'bottom'
+                    display: true
                 }
             }
         }
@@ -172,35 +184,28 @@ setInterval(loadData, 5000)
 loadData()
 
 
-// ================= PDF =================
+// ================= PDF DOWNLOAD (TABLE FORMAT) =================
 async function downloadPDF() {
 
     const { jsPDF } = window.jspdf
     const doc = new jsPDF()
 
-    const res = await fetch(`${API}/admin/all_sessions`, {
-        headers: getHeaders()
+    doc.text("Exam Proctoring Report", 14, 10)
+
+    // ✅ AutoTable (same UI table)
+    doc.autoTable({
+        html: '#reportTable',
+        startY: 20,
+        theme: 'grid',
+        styles: {
+            halign: 'center'
+        },
+        headStyles: {
+            fillColor: [0,0,0]
+        }
     })
 
-    const data = await res.json()
-
-    let y = 10
-    doc.text("Exam Report", 10, y)
-    y += 10
-
-    data.forEach(s => {
-
-        let percent = calculateCheating(s)
-
-        doc.text(
-            `User: ${s.user} | Student: ${s.student_id} | Cheating: ${percent}%`,
-            10,
-            y
-        )
-        y += 10
-    })
-
-    doc.save("report.pdf")
+    doc.save("Exam_Report.pdf")
 }
 
 

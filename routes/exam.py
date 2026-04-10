@@ -4,30 +4,24 @@ from sqlalchemy.orm import Session
 import models
 import schemas
 from database import get_db
-
 from auth import verify_token
 
 router = APIRouter()
-
 
 # ================= START EXAM =================
 @router.post("/start_exam")
 def start_exam(
     data: schemas.StartExam,
     db: Session = Depends(get_db),
-    user: str = Depends(verify_token)   # ✅ ADD THIS
+    user: str = Depends(verify_token)
 ):
-    
-    
 
     if not data.student_id:
         raise HTTPException(status_code=400, detail="student_id required")
 
-       # ✅ DEBUG
-
     session = models.ExamSession(
         student_id=data.student_id,
-        user=user   # ✅ STORE USER
+        user=user
     )
 
     db.add(session)
@@ -37,7 +31,7 @@ def start_exam(
     return {
         "session_id": session.id,
         "student_id": session.student_id,
-        "user": user   # ✅ OPTIONAL (for testing)
+        "user": user
     }
 
 
@@ -47,7 +41,7 @@ def log_event(
     session_id: int,
     data: schemas.Event,
     db: Session = Depends(get_db),
-    user: str = Depends(verify_token)   # ✅ PROTECT
+    user: str = Depends(verify_token)
 ):
 
     session = db.query(models.ExamSession).filter(
@@ -68,13 +62,13 @@ def log_event(
     return {"message": "event counted"}
 
 
-# ================= FACE =================
+# ================= FACE DETECTION =================
 @router.post("/face_detection/{session_id}")
 def face_detection(
     session_id: int,
     data: schemas.FaceDetection,
     db: Session = Depends(get_db),
-    user: str = Depends(verify_token)   # ✅ PROTECT
+    user: str = Depends(verify_token)
 ):
 
     session = db.query(models.ExamSession).filter(
@@ -84,11 +78,20 @@ def face_detection(
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
+    # Face logic
     if data.face_count == 0:
         session.face_not_detected_count += 1
 
     elif data.face_count > 1:
         session.multiple_face_count += 1
+
+    
+    # ✅ LEFT / RIGHT LOOK DETECTION
+    if data.look_direction == "LEFT":
+      session.left_look_count += 1
+
+    elif data.look_direction == "RIGHT":
+      session.right_look_count += 1
 
     db.commit()
 
@@ -102,7 +105,7 @@ def face_detection(
 def report(
     session_id: int,
     db: Session = Depends(get_db),
-    user: str = Depends(verify_token)   # ✅ PROTECT
+    user: str = Depends(verify_token)
 ):
 
     session = db.query(models.ExamSession).filter(
@@ -114,18 +117,23 @@ def report(
 
     return {
         "student_id": session.student_id,
-        "user": session.user,   # ✅ SHOW USER
+        "user": session.user,
         "tab_switch_count": session.tab_switch_count,
         "face_not_detected_count": session.face_not_detected_count,
         "multiple_face_count": session.multiple_face_count,
-        "sound_detected_count": session.sound_detected_count
+        "sound_detected_count": session.sound_detected_count,
+        "left_look_count": session.left_look_count,
+        "right_look_count": session.right_look_count
     }
-    
+
+
+# ================= ADMIN =================
 @router.get("/admin/all_sessions")
 def get_all_sessions(
     db: Session = Depends(get_db),
     user: str = Depends(verify_token)
 ):
+
     sessions = db.query(models.ExamSession).all()
 
     result = []
@@ -138,8 +146,9 @@ def get_all_sessions(
             "tab_switch_count": s.tab_switch_count,
             "face_not_detected_count": s.face_not_detected_count,
             "multiple_face_count": s.multiple_face_count,
-            "sound_detected_count": s.sound_detected_count
+            "sound_detected_count": s.sound_detected_count,
+            "left_look_count": s.left_look_count,
+            "right_look_count": s.right_look_count
         })
 
     return result
-
