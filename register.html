@@ -38,25 +38,41 @@ async function register() {
         mobile: document.getElementById("mobile").value,
         password: document.getElementById("password").value,
         confirm_password: document.getElementById("confirm").value
-    }
+    };
 
     if (data.password !== data.confirm_password) {
-        alert("Passwords do not match")
-        return
+        alert("❌ Passwords do not match");
+        return;
     }
 
-    const res = await fetch(`${API}/register`, {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify(data)
-    })
+    try {
 
-    const result = await res.json()
+        const res = await fetch(`${API}/register`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(data)
+        });
 
-    alert(result.message || result.detail)
+        const result = await res.json();
 
-    // redirect to login
-    window.location.href = "login.html"
+        if (res.ok) {
+
+            alert("✅ User Registered Successfully");
+
+            window.location.href = "login.html";
+
+        } else {
+
+            alert("❌ " + (result.detail || "Registration Failed"));
+        }
+
+    } catch (error) {
+
+        console.error(error);
+        alert("❌ Unable to connect to server");
+    }
 }
 
 </script>
