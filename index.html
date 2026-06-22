@@ -8,553 +8,784 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface"></script>
 
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils"></script>
 
+
     <style>
-        body { background: #f5f6fa; }
-        video { width: 100%; border-radius: 10px; }
-        .card { margin-top: 20px; }
+        body {
+            background: #f5f6fa;
+        }
+
+        video {
+            width: 100%;
+            border-radius: 10px;
+        }
+
+        .card {
+            margin-top: 20px;
+        }
     </style>
 </head>
 
 <body>
 
-<!-- REGISTER -->
-<div class="container mt-3" id="registerSection" style="display:none;">
-    <div class="card p-4">
-        <h3 class="text-center">Register</h3>
+    <!-- REGISTER -->
+    <div class="container mt-3" id="registerSection" style="display:none;">
+        <div class="card p-4">
+            <h3 class="text-center">Register</h3>
 
-        <input id="name" class="form-control mt-2" placeholder="Name">
-        <input id="regUsername" class="form-control mt-2" placeholder="Username">
-        <input id="email" class="form-control mt-2" placeholder="Email">
-        <input id="mobile" class="form-control mt-2" placeholder="Mobile No">
-        <input id="regPassword" type="password" class="form-control mt-2" placeholder="Password">
-        <input id="confirmPassword" type="password" class="form-control mt-2" placeholder="Confirm Password">
+            <input id="name" class="form-control mt-2" placeholder="Name">
+            <input id="regUsername" class="form-control mt-2" placeholder="Username">
+            <input id="email" class="form-control mt-2" placeholder="Email">
+            <input id="mobile" class="form-control mt-2" placeholder="Mobile No">
+            <input id="regPassword" type="password" class="form-control mt-2" placeholder="Password">
+            <input id="confirmPassword" type="password" class="form-control mt-2" placeholder="Confirm Password">
 
-        <button class="btn btn-success mt-3" onclick="register()">Register</button>
+            <button class="btn btn-success mt-3" onclick="register()">Register</button>
 
-        <p class="mt-3 text-center">
-            Already have account?
-           <a href="#" onclick="showLogin(); return false;">Login</a>
-        </p>
-    </div>
-</div>
-
-<!-- LOGIN -->
-<div class="container mt-3" id="loginSection">
-    <div class="card p-4">
-        <h3 class="text-center">Login</h3>
-
-        <input id="username" class="form-control mt-2" placeholder="Username">
-        <input id="password" type="password" class="form-control mt-2" placeholder="Password">
-
-        <button class="btn btn-primary mt-3" onclick="login()">Login</button>
-
-        <p class="mt-3 text-center">
-            Not registered?
-            <a href="#" onclick="showRegister(); return false;">Create Account</a>
-        </p>
-    </div>
-</div>
-
-<!-- APP -->
-<div id="appSection" style="display:none;">
-
-<div class="container mt-4">
-
-    <button class="btn btn-danger float-end" onclick="logout()">Logout</button>
-
-    <h2 class="text-center">Online Exam Proctoring</h2>
-
-    <!-- USER -->
-    <div class="card p-3">
-        <h5>User Details</h5>
-        <p>Name: <span id="uName"></span></p>
-        <p>Username: <span id="uUsername"></span></p>
-        <p>Email: <span id="uEmail"></span></p>
-        <p>Mobile: <span id="uMobile"></span></p>
+            <p class="mt-3 text-center">
+                Already have account?
+                <a href="#" onclick="showLogin(); return false;">Login</a>
+            </p>
+        </div>
     </div>
 
-    <!-- START -->
-    <div class="card p-4">
-        <label>Student ID</label>
-        <input id="studentId" class="form-control">
+    <!-- LOGIN -->
+    <div class="container mt-3" id="loginSection">
+        <div class="card p-4">
+            <h3 class="text-center">Login</h3>
 
-        <button class="btn btn-primary mt-3" onclick="startExam()">Start Exam</button>
+            <input id="username" class="form-control mt-2" placeholder="Username">
+            <input id="password" type="password" class="form-control mt-2" placeholder="Password">
 
-        <p class="mt-3">
-            Session ID :
-            <span id="sessionId" class="badge bg-success"></span>
-        </p>
+            <button class="btn btn-primary mt-3" onclick="login()">Login</button>
+
+            <p class="mt-3 text-center">
+                Not registered?
+                <a href="#" onclick="showRegister(); return false;">Create Account</a>
+            </p>
+        </div>
     </div>
 
-    <div class="row">
+    <!-- APP -->
+    <div id="appSection" style="display:none;">
 
-        <div class="col-md-6">
+        <div class="container mt-4">
+
+            <button class="btn btn-danger float-end" onclick="logout()">Logout</button>
+
+            <h2 class="text-center">Online Exam Proctoring</h2>
+
+            <!-- USER -->
             <div class="card p-3">
-                <h5>Camera Monitor</h5>
-                <div style="position:relative;">
-    <video id="video" autoplay playsinline muted></video>
-    <canvas id="canvas" style="position:absolute; top:0; left:0;"></canvas>
-</div>
+                <h5>User Details</h5>
+                <p>Name: <span id="uName"></span></p>
+                <p>Username: <span id="uUsername"></span></p>
+                <p>Email: <span id="uEmail"></span></p>
+                <p>Mobile: <span id="uMobile"></span></p>
+            </div>
+
+            <!-- START -->
+            <div class="card p-4">
+                <label>Student ID</label>
+                <input id="studentId" class="form-control">
+
+                <button class="btn btn-primary mt-3" onclick="startExam()">Start Exam</button>
 
                 <p class="mt-3">
-                    Face Status :
-                    <span id="faceStatus" class="badge bg-secondary">Waiting</span>
-                    <p style="color:red;" id="movementAlert"></p>
+                    Session ID :
+                    <span id="sessionId" class="badge bg-success"></span>
                 </p>
             </div>
-        </div>
 
-        <div class="col-md-6">
-            <div class="card p-3">
-                <h5>Microphone Monitor</h5>
+            <div class="row">
 
-                <p>Noise Level : <span id="noiseLevel">0</span></p>
+                <div class="col-md-6">
+                    <div class="card p-3">
+                        <h5>Camera Monitor</h5>
+                        <div style="position:relative;">
+                            <video id="video" autoplay playsinline muted></video>
+                            <canvas id="canvas" style="position:absolute; top:0; left:0;"></canvas>
+                        </div>
 
-                <p>
-                    Noise Status :
-                    <span id="noiseStatus" class="badge bg-secondary">Waiting</span>
-                </p>
+                        <p class="mt-3">
+                            Face Status :
+                            <span id="faceStatus" class="badge bg-secondary">Waiting</span>
+                        <p style="color:red;" id="movementAlert"></p>
+                        </p>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="card p-3">
+                        <h5>Microphone Monitor</h5>
+
+                        <p>Noise Level : <span id="noiseLevel">0</span></p>
+
+                        <p>
+                            Noise Status :
+                            <span id="noiseStatus" class="badge bg-secondary">Waiting</span>
+                        </p>
+                    </div>
+                </div>
+
             </div>
+
+            <div class="card p-4">
+                <h5>Exam Report</h5>
+                <button class="btn btn-dark" onclick="getReport()">Get Report</button>
+                <pre id="reportBox"></pre>
+            </div>
+
         </div>
-
     </div>
 
-    <div class="card p-4">
-        <h5>Exam Report</h5>
-        <button class="btn btn-dark" onclick="getReport()">Get Report</button>
-        <pre id="reportBox"></pre>
-    </div>
+    <script>
 
-</div>
-</div>
+        const API = "http://127.0.0.1:8000"
 
-<script>
+        let faceMesh
+        let lastDirection = "CENTER"
 
-const API = "http://127.0.0.1:8000"
+        let sessionId = null
+        let model = null
+        let videoStream = null
+        let prevFace = null
 
-let faceMesh
-let lastDirection = "CENTER"
+        let objectModel = null;
+        let objectAlertShown = false;
 
-let sessionId = null
-let model = null
-let videoStream = null
-let prevFace = null
+        let lastObjectDetected = ""
 
-// Tab Detection code
+        //Load Object Model function
+        async function loadObjectModel() {
 
-let lastTabState = false
+            objectModel = await cocoSsd.load();
 
-function sendTabEvent() {
-    if (!sessionId) return
+            console.log("✅ Object Detection Model Loaded");
+        }
+        // Warning Function
+        function showWarning(message) {
 
-    fetch(`${API}/exam/event/${sessionId}`, {
-        method: "POST",
-        headers: getHeaders(),
-        body: JSON.stringify({ event_type: "TAB_SWITCH" })
-    })
-}
+            const box = document.getElementById("warningBox");
 
-// TAB SWITCH
-document.addEventListener("visibilitychange", () => {
-    if (document.hidden && !lastTabState) {
-        lastTabState = true
-        sendTabEvent()
-    }
-    if (!document.hidden) {
-        lastTabState = false
-    }
-})
+            box.innerHTML = message;
+            box.style.display = "block";
 
-// ALT+TAB / MINIMIZE
-window.addEventListener("blur", () => {
-    if (!lastTabState) {
-        lastTabState = true
-        sendTabEvent()
-    }
-})
-
-// RETURN
-window.addEventListener("focus", () => {
-    lastTabState = false
-})
-
-console.log("TAB SCRIPT LOADED")
-
-// INIT
-window.onload = () => {
-
-    const token = localStorage.getItem("token");
-
-    if (token) {
-
-        showApp();
-
-        const user = JSON.parse(localStorage.getItem("user"));
-
-        if (user) {
-            document.getElementById("uName").innerText = user.name;
-            document.getElementById("uUsername").innerText = user.username;
-            document.getElementById("uEmail").innerText = user.email;
-            document.getElementById("uMobile").innerText = user.mobile;
+            setTimeout(() => {
+                box.style.display = "none";
+            }, 3000);
         }
 
-    } else {
+        // Tab Detection code
 
-        showLogin();
-    }
-}
-// HEADERS
-function getHeaders() {
-    const token = localStorage.getItem("token")
+        let lastTabState = false
 
-    if (!token) {
-        
-        logout()
-    }
+        function sendTabEvent() {
 
-    return {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer " + token
-    }
-}
+            if (!sessionId) return;
 
-// UI SWITCH
-function showLogin() {
-    loginSection.style.display = "block"
-    registerSection.style.display = "none"
-    appSection.style.display = "none"
-}
+            showWarning("⚠️ Tab Switching Detected!<br>🚫 Please stay on the exam screen.");
 
-function showRegister() {
-    loginSection.style.display = "none"
-    registerSection.style.display = "block"
-    appSection.style.display = "none"
-}
+            alert("⚠️ Warning!\n🚫 Tab Switching Detected.\nPlease stay on the exam screen.");
 
-function showApp() {
-    loginSection.style.display = "none"
-    registerSection.style.display = "none"
-    appSection.style.display = "block"
-}
+            fetch(`${API}/exam/event/${sessionId}`, {
+                method: "POST",
+                headers: getHeaders(),
+                body: JSON.stringify({
+                    event_type: "TAB_SWITCH"
+                })
+            }).catch(err => console.log(err));
+        }
 
-// REGISTER
-async function register() {
-
-    const data = {
-        name: name.value,
-        username: regUsername.value,
-        email: email.value,
-        mobile: mobile.value,
-        password: regPassword.value,
-        confirm_password: confirmPassword.value
-    }
-
-    if (data.password !== data.confirm_password) {
-        alert("Passwords do not match")
-        return
-    }
-
-    const res = await fetch(`${API}/register`, {
-    method: "POST",
-    headers: {
-        "Content-Type": "application/json"
-    },
-    body: JSON.stringify(data)
-})
-
-    const result = await res.json()
-
-    alert("Registration Successful");
-    showLogin()
-}
-
-// LOGIN
-async function login() {
-
-    try {
-
-        const res = await fetch(`${API}/login`, {
-            method: "POST",
-            headers: {
-        "Content-Type": "application/json"
-    },
-            body: JSON.stringify({
-                username: username.value,
-                password: password.value
-            })
+        // TAB SWITCH
+        document.addEventListener("visibilitychange", () => {
+            if (document.hidden && !lastTabState) {
+                lastTabState = true
+                sendTabEvent()
+            }
+            if (!document.hidden) {
+                lastTabState = false
+            }
         })
 
-        const data = await res.json()
+        // ALT+TAB / MINIMIZE
+        window.addEventListener("blur", () => {
 
-        console.log("TOKEN:", data.access_token)
+            if (systemAlertActive) return;
 
-        if (data.access_token) {
+            if (!lastTabState) {
+                lastTabState = true;
+                sendTabEvent();
+            }
+        });
 
-            localStorage.setItem("token", data.access_token)
-            localStorage.setItem("user", JSON.stringify(data.user))
+        // RETURN
+        window.addEventListener("focus", () => {
+            lastTabState = false
+        })
 
-            uName.innerText = data.user.name
-            uUsername.innerText = data.user.username
-            uEmail.innerText = data.user.email
-            uMobile.innerText = data.user.mobile
+        console.log("TAB SCRIPT LOADED")
 
-            alert("Login Successful ✅")
+        // INIT
+        window.onload = () => {
 
-            showApp()
+            const token = localStorage.getItem("token");
 
-        } else {
-            alert("Login failed")
+            if (token) {
+
+                showApp();
+
+                const user = JSON.parse(localStorage.getItem("user"));
+
+                if (user) {
+                    document.getElementById("uName").innerText = user.name;
+                    document.getElementById("uUsername").innerText = user.username;
+                    document.getElementById("uEmail").innerText = user.email;
+                    document.getElementById("uMobile").innerText = user.mobile;
+                }
+
+            } else {
+
+                showLogin();
+            }
         }
+        // HEADERS
+        function getHeaders() {
+            const token = localStorage.getItem("token")
 
-    } catch {
-        alert("Backend not running")
-    }
-}
+            if (!token) {
 
-// LOGOUT
-function logout() {
-    localStorage.clear()
-
-    if (videoStream) {
-        videoStream.getTracks().forEach(track => track.stop())
-    }
-
-    alert("Logout Successful ✅")
-
-    showLogin()
-}
-
-// START EXAM
-async function startExam() {
-
-    const res = await fetch(`${API}/exam/start_exam`, {
-        method: "POST",
-        headers: getHeaders(),
-        body: JSON.stringify({student_id: studentId.value})
-    })
-
-    if (!res.ok) {
-        alert("Backend error")
-        return
-    }
-
-    const data = await res.json()
-
-    sessionId = data.session_id
-    sessionId && (document.getElementById("sessionId").innerText = sessionId)
-
-    await startCamera()
-    await loadModel()
-
-    startFaceDetection()
-    startNoiseDetection()
-}
-
-// CAMERA
-async function startCamera() {
-    videoStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-    video.srcObject = videoStream
-}
-
-// MODEL
-function loadModel() {
-
-    faceMesh = new FaceMesh({
-        locateFile: (file) => {
-            return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
-        }
-    })
-
-    faceMesh.setOptions({
-        maxNumFaces: 5,
-        refineLandmarks: true,
-        minDetectionConfidence: 0.5,
-        minTrackingConfidence: 0.5
-    })
-
-    faceMesh.onResults(onResults)
-
-    const camera = new Camera(video, {
-        onFrame: async () => {
-            await faceMesh.send({ image: video })
-        },
-        width: 640,
-        height: 480
-    })
-
-    camera.start()
-}
-
-// FACE DETECTION
-function startFaceDetection() {
-    // MediaPipe handles detection automatically
-
-    
-}
-// NOISE DETECTION
-function startNoiseDetection() {
-
-    const audioContext = new AudioContext()
-    const mic = audioContext.createMediaStreamSource(videoStream)
-    const analyser = audioContext.createAnalyser()
-
-    mic.connect(analyser)
-
-    const dataArray = new Uint8Array(analyser.frequencyBinCount)
-
-    setInterval(() => {
-
-        analyser.getByteFrequencyData(dataArray)
-
-        let volume = dataArray.reduce((a, b) => a + b) / dataArray.length
-
-        noiseLevel.innerText = volume.toFixed(2)
-
-        if (volume > 20) {
-
-            noiseStatus.innerText = "Noise Detected"
-            noiseStatus.className = "badge bg-danger"
-
-            if (sessionId) {
-                fetch(`${API}/exam/event/${sessionId}`, {
-                    method: "POST",
-                    headers: getHeaders(),
-                    body: JSON.stringify({ event_type: "NOISE" })
-                })
+                logout()
             }
 
-        } else {
-
-            noiseStatus.innerText = "Normal"
-            noiseStatus.className = "badge bg-success"
+            return {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + token
+            }
         }
 
-    }, 2000)
+        // UI SWITCH
+        function showLogin() {
+            loginSection.style.display = "block"
+            registerSection.style.display = "none"
+            appSection.style.display = "none"
+        }
+
+        function showRegister() {
+            loginSection.style.display = "none"
+            registerSection.style.display = "block"
+            appSection.style.display = "none"
+        }
+
+        function showApp() {
+            loginSection.style.display = "none"
+            registerSection.style.display = "none"
+            appSection.style.display = "block"
+        }
+
+        // REGISTER
+        async function register() {
+
+            const data = {
+                name: name.value,
+                username: regUsername.value,
+                email: email.value,
+                mobile: mobile.value,
+                password: regPassword.value,
+                confirm_password: confirmPassword.value
+            }
+
+            if (data.password !== data.confirm_password) {
+                alert("Passwords do not match")
+                return
+            }
+
+            const res = await fetch(`${API}/register`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(data)
+            })
+
+            const result = await res.json()
+
+            alert("Registration Successful");
+            showLogin()
+        }
+
+        // LOGIN
+        async function login() {
+
+            try {
+
+                const res = await fetch(`${API}/login`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        username: username.value,
+                        password: password.value
+                    })
+                })
+
+                const data = await res.json()
+
+                console.log("TOKEN:", data.access_token)
+
+                if (data.access_token) {
+
+                    localStorage.setItem("token", data.access_token)
+                    localStorage.setItem("user", JSON.stringify(data.user))
+
+                    uName.innerText = data.user.name
+                    uUsername.innerText = data.user.username
+                    uEmail.innerText = data.user.email
+                    uMobile.innerText = data.user.mobile
+
+                    alert("Login Successful ✅")
+
+                    showApp()
+
+                } else {
+                    alert("Login failed")
+                }
+
+            } catch {
+                alert("Backend not running")
+            }
+        }
+
+        // LOGOUT
+        function logout() {
+            localStorage.clear()
+
+            if (videoStream) {
+                videoStream.getTracks().forEach(track => track.stop())
+            }
+
+            alert("Logout Successful ✅")
+
+            showLogin()
+        }
+
+        // START EXAM
+        async function startExam() {
+
+            const res = await fetch(`${API}/exam/start_exam`, {
+                method: "POST",
+                headers: getHeaders(),
+                body: JSON.stringify({ student_id: studentId.value })
+            })
+
+            if (!res.ok) {
+                alert("Backend error")
+                return
+            }
+
+            const data = await res.json()
+
+            sessionId = data.session_id
+            sessionId && (document.getElementById("sessionId").innerText = sessionId)
+
+            await startCamera()
+            await loadModel()
+            await loadObjectModel()
+
+            startFaceDetection()
+            startNoiseDetection()
+            startObjectDetection()
+        }
+
+        // CAMERA
+        async function startCamera() {
+            videoStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+            video.srcObject = videoStream
+        }
+
+        // MODEL
+        function loadModel() {
+
+            faceMesh = new FaceMesh({
+                locateFile: (file) => {
+                    return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+                }
+            })
+
+            faceMesh.setOptions({
+                maxNumFaces: 5,
+                refineLandmarks: true,
+                minDetectionConfidence: 0.5,
+                minTrackingConfidence: 0.5
+            })
+
+            faceMesh.onResults(onResults)
+
+            const camera = new Camera(video, {
+                onFrame: async () => {
+                    await faceMesh.send({ image: video })
+                },
+                width: 640,
+                height: 480
+            })
+
+            camera.start()
+        }
+
+        // FACE DETECTION
+        function startFaceDetection() {
+            // MediaPipe handles detection automatically
+
+
+        }
+        // NOISE DETECTION
+        function startNoiseDetection() {
+
+            const audioContext = new AudioContext()
+            const mic = audioContext.createMediaStreamSource(videoStream)
+            const analyser = audioContext.createAnalyser()
+
+            mic.connect(analyser)
+
+            const dataArray = new Uint8Array(analyser.frequencyBinCount)
+
+            setInterval(() => {
+
+                analyser.getByteFrequencyData(dataArray)
+
+                let volume = dataArray.reduce((a, b) => a + b) / dataArray.length
+
+                noiseLevel.innerText = volume.toFixed(2)
+
+                if (volume > 20) {
+
+                    showWarning("🔊 Noise Detected!");
+
+
+                    noiseStatus.innerText = "Noise Detected"
+                    noiseStatus.className = "badge bg-danger"
+
+                    if (sessionId) {
+                        fetch(`${API}/exam/event/${sessionId}`, {
+                            method: "POST",
+                            headers: getHeaders(),
+                            body: JSON.stringify({ event_type: "NOISE" })
+                        })
+                    }
+
+                } else {
+
+                    noiseStatus.innerText = "Normal"
+                    noiseStatus.className = "badge bg-success"
+                }
+
+            }, 2000)
+        }
+
+        //Object detection Function
+        function startObjectDetection() {
+            console.log("🚀 Object Detection Started");
+            setInterval(async () => {
+
+                if (!objectModel) return;
+
+                if (!video.videoWidth) return;
+
+                const predictions = await objectModel.detect(video);
+                console.log(predictions);
+                const canvas = document.getElementById("canvas");
+                const ctx = canvas.getContext("2d");
+
+                predictions.forEach(pred => {
+
+                    const detectedObject = pred.class;
+
+                    // Draw Bounding Box
+                    const [x, y, width, height] = pred.bbox;
+
+                    ctx.strokeStyle = "red";
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(x, y, width, height);
+
+                    ctx.fillStyle = "red";
+                    ctx.font = "16px Arial";
+                    ctx.fillText(detectedObject, x, y - 5);
+
+                    // Exam Violations
+                    if (
+                        detectedObject === "cell phone" ||
+                        detectedObject === "laptop" ||
+                        detectedObject === "book" ||
+                        detectedObject === "keyboard" ||
+                        detectedObject === "mouse" ||
+                        detectedObject === "tablet"
+                    ) {
+
+                        // Prevent repeated warnings
+                        if (lastObjectDetected !== detectedObject) {
+
+                            lastObjectDetected = detectedObject;
+
+                            showWarning(
+                                `📱 Prohibited Object Detected!<br><b>${detectedObject.toUpperCase()}</b>`
+                            );
+
+                            // Send event to backend
+                            if (sessionId) {
+
+                                fetch(`${API}/exam/event/${sessionId}`, {
+                                    method: "POST",
+                                    headers: getHeaders(),
+                                    body: JSON.stringify({
+                                        event_type: `OBJECT_${detectedObject.replace(" ", "_").toUpperCase()}`
+                                    })
+                                }).catch(err => console.log(err));
+                            }
+
+                            // Reset after 5 sec
+                            setTimeout(() => {
+                                lastObjectDetected = "";
+                            }, 5000);
+                        }
+                    }
+                });
+
+            }, 3000);
+        }
+
+        //main logic
+
+        function onResults(results) {
+
+            const canvas = document.getElementById("canvas")
+            const ctx = canvas.getContext("2d")
+
+            canvas.width = video.videoWidth
+            canvas.height = video.videoHeight
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+            // ================= FACE COUNT =================
+            const faceCount = results.multiFaceLandmarks
+                ? results.multiFaceLandmarks.length
+                : 0
+
+
+            // ================= NO FACE =================
+            if (faceCount === 0) {
+
+                showWarning("🚨 Face Not Detected!");
+
+                faceStatus.innerText = "Face Missing"
+                faceStatus.className = "badge bg-danger"
+
+                if (sessionId && lastDirection !== "MISSING") {
+
+                    fetch(`${API}/exam/face_detection/${sessionId}`, {
+                        method: "POST",
+                        headers: getHeaders(),
+                        body: JSON.stringify({
+                            face_count: 0,
+                            look_direction: "CENTER"
+                        })
+                    })
+
+                    lastDirection = "MISSING"
+                }
+
+                return
+            }
+
+
+            // ================= MULTIPLE FACES =================
+            if (faceCount > 1) {
+
+                showWarning("👥 Multiple Faces Detected!");
+
+                faceStatus.innerText = "Multiple Faces Detected"
+                faceStatus.className = "badge bg-warning"
+
+                if (sessionId && lastDirection !== "MULTIPLE") {
+
+                    fetch(`${API}/exam/face_detection/${sessionId}`, {
+                        method: "POST",
+                        headers: getHeaders(),
+                        body: JSON.stringify({
+                            face_count: faceCount,
+                            look_direction: "CENTER"
+                        })
+                    })
+
+                    lastDirection = "MULTIPLE"
+                }
+
+                return
+            }
+
+
+            // ================= SINGLE FACE =================
+            const landmarks = results.multiFaceLandmarks[0]
+
+            // DRAW POINTS
+            landmarks.forEach(point => {
+                ctx.beginPath()
+                ctx.arc(point.x * canvas.width, point.y * canvas.height, 2, 0, 2 * Math.PI)
+                ctx.fillStyle = "blue"
+                ctx.fill()
+            })
+
+            // DRAW FACE BOX
+            const xs = landmarks.map(p => p.x * canvas.width)
+            const ys = landmarks.map(p => p.y * canvas.height)
+
+            const minX = Math.min(...xs)
+            const minY = Math.min(...ys)
+            const maxX = Math.max(...xs)
+            const maxY = Math.max(...ys)
+
+            ctx.strokeStyle = "green"
+            ctx.lineWidth = 3
+            ctx.strokeRect(minX, minY, maxX - minX, maxY - minY)
+
+            faceStatus.innerText = "Face Detected"
+            faceStatus.className = "badge bg-success"
+
+
+            // ================= EYE GAZE =================
+            const leftEye = landmarks[33]
+            const rightEye = landmarks[263]
+            const nose = landmarks[1]
+
+            const eyeCenterX = (leftEye.x + rightEye.x) / 2
+
+            let direction = "CENTER"
+
+            if (nose.x < eyeCenterX - 0.02) {
+                direction = "LEFT"
+                showWarning("👀 Looking Left Detected!");
+            }
+            else if (nose.x > eyeCenterX + 0.02) {
+                direction = "RIGHT"
+                showWarning("👀 Looking Right Detected!");
+            }
+
+
+            // ================= SEND ONLY WHEN CHANGED =================
+            if (sessionId && direction !== lastDirection) {
+
+                if (direction !== "CENTER") {
+
+                    movementAlert.innerText = `⚠ Looking ${direction}`
+                    movementAlert.style.color = "red"
+
+                    fetch(`${API}/exam/face_detection/${sessionId}`, {
+                        method: "POST",
+                        headers: getHeaders(),
+                        body: JSON.stringify({
+                            face_count: 1,
+                            look_direction: direction
+                        })
+                    })
+
+                } else {
+                    movementAlert.innerText = ""
+                }
+
+                lastDirection = direction
+            }
+        }
+
+        // ================= DRAW FACE POINTS =================
+        landmarks.forEach(point => {
+            ctx.beginPath()
+            ctx.arc(point.x * canvas.width, point.y * canvas.height, 2, 0, 2 * Math.PI)
+            ctx.fillStyle = "blue"
+            ctx.fill()
+        })
+
+        // ================= FACE BOX =================
+        const xs = landmarks.map(p => p.x * canvas.width)
+        const ys = landmarks.map(p => p.y * canvas.height)
+
+        const minX = Math.min(...xs)
+        const minY = Math.min(...ys)
+        const maxX = Math.max(...xs)
+        const maxY = Math.max(...ys)
+
+        ctx.strokeStyle = "green"
+        ctx.lineWidth = 3
+        ctx.strokeRect(minX, minY, maxX - minX, maxY - minY)
+
+        faceStatus.innerText = "Face Detected"
+        faceStatus.className = "badge bg-success"
+
+        // ================= EYE GAZE DETECTION =================
+        // LEFT EYE (landmarks)
+        const leftEye = landmarks[33];
+const rightEye = landmarks[263];
+const nose = landmarks[1];
+const forehead = landmarks[10];
+const chin = landmarks[152];
+
+let direction = "CENTER";
+
+// ================= LEFT / RIGHT =================
+
+const eyeCenterX = (leftEye.x + rightEye.x) / 2;
+
+if (nose.x < eyeCenterX - 0.02) {
+
+    direction = "LEFT";
+
+    showWarning("👀 Looking Left Detected!");
+
+}
+else if (nose.x > eyeCenterX + 0.02) {
+
+    direction = "RIGHT";
+
+    showWarning("👀 Looking Right Detected!");
+
 }
 
-//main logic
+// ================= UP / DOWN =================
 
-function onResults(results) {
+const headHeight = chin.y - forehead.y;
 
-    const canvas = document.getElementById("canvas")
-    const ctx = canvas.getContext("2d")
+if (headHeight < 0.28) {
 
-    canvas.width = video.videoWidth
-    canvas.height = video.videoHeight
+    direction = "UP";
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    showWarning("⬆️ Looking Up Detected!");
 
-    // ================= FACE COUNT =================
-    const faceCount = results.multiFaceLandmarks 
-        ? results.multiFaceLandmarks.length 
-        : 0
+}
+else if (headHeight > 0.42) {
 
+    direction = "DOWN";
 
-    // ================= NO FACE =================
-    if (faceCount === 0) {
+    showWarning("⬇️ Looking Down Detected!");
 
-        faceStatus.innerText = "Face Missing"
-        faceStatus.className = "badge bg-danger"
+}
 
-        if (sessionId && lastDirection !== "MISSING") {
+        // ================= CHEATING DETECTION =================
+        const now = Date.now()
 
-            fetch(`${API}/exam/face_detection/${sessionId}`, {
-                method: "POST",
-                headers: getHeaders(),
-                body: JSON.stringify({
-                    face_count: 0,
-                    look_direction: "CENTER"
-                })
-            })
-
-            lastDirection = "MISSING"
-        }
-
-        return
-    }
-
-
-    // ================= MULTIPLE FACES =================
-    if (faceCount > 1) {
-
-        faceStatus.innerText = "Multiple Faces Detected"
-        faceStatus.className = "badge bg-warning"
-
-        if (sessionId && lastDirection !== "MULTIPLE") {
-
-            fetch(`${API}/exam/face_detection/${sessionId}`, {
-                method: "POST",
-                headers: getHeaders(),
-                body: JSON.stringify({
-                    face_count: faceCount,
-                    look_direction: "CENTER"
-                })
-            })
-
-            lastDirection = "MULTIPLE"
-        }
-
-        return
-    }
-
-
-    // ================= SINGLE FACE =================
-    const landmarks = results.multiFaceLandmarks[0]
-
-    // DRAW POINTS
-    landmarks.forEach(point => {
-        ctx.beginPath()
-        ctx.arc(point.x * canvas.width, point.y * canvas.height, 2, 0, 2 * Math.PI)
-        ctx.fillStyle = "blue"
-        ctx.fill()
-    })
-
-    // DRAW FACE BOX
-    const xs = landmarks.map(p => p.x * canvas.width)
-    const ys = landmarks.map(p => p.y * canvas.height)
-
-    const minX = Math.min(...xs)
-    const minY = Math.min(...ys)
-    const maxX = Math.max(...xs)
-    const maxY = Math.max(...ys)
-
-    ctx.strokeStyle = "green"
-    ctx.lineWidth = 3
-    ctx.strokeRect(minX, minY, maxX - minX, maxY - minY)
-
-    faceStatus.innerText = "Face Detected"
-    faceStatus.className = "badge bg-success"
-
-
-    // ================= EYE GAZE =================
-    const leftEye = landmarks[33]
-    const rightEye = landmarks[263]
-    const nose = landmarks[1]
-
-    const eyeCenterX = (leftEye.x + rightEye.x) / 2
-
-    let direction = "CENTER"
-
-    if (nose.x < eyeCenterX - 0.02) {
-        direction = "LEFT"
-    } 
-    else if (nose.x > eyeCenterX + 0.02) {
-        direction = "RIGHT"
-    }
-
-
-    // ================= SEND ONLY WHEN CHANGED =================
-    if (sessionId && direction !== lastDirection) {
-
+        // ================= UI =================
         if (direction !== "CENTER") {
-
             movementAlert.innerText = `⚠ Looking ${direction}`
             movementAlert.style.color = "red"
+        } else {
+            movementAlert.innerText = ""
+        }
+
+        // ================= COUNT ONLY ON CHANGE =================
+        if (sessionId && direction !== "CENTER" && direction !== lastDirection) {
 
             fetch(`${API}/exam/face_detection/${sessionId}`, {
                 method: "POST",
@@ -563,109 +794,46 @@ function onResults(results) {
                     face_count: 1,
                     look_direction: direction
                 })
-            })
-
-        } else {
-            movementAlert.innerText = ""
+            }).catch(err => console.log(err))
         }
 
+        // ✅ ALWAYS update lastDirection
         lastDirection = direction
-    }
-}
 
-    // ================= DRAW FACE POINTS =================
-    landmarks.forEach(point => {
-        ctx.beginPath()
-        ctx.arc(point.x * canvas.width, point.y * canvas.height, 2, 0, 2 * Math.PI)
-        ctx.fillStyle = "blue"
-        ctx.fill()
-    })
 
-    // ================= FACE BOX =================
-    const xs = landmarks.map(p => p.x * canvas.width)
-    const ys = landmarks.map(p => p.y * canvas.height)
 
-    const minX = Math.min(...xs)
-    const minY = Math.min(...ys)
-    const maxX = Math.max(...xs)
-    const maxY = Math.max(...ys)
 
-    ctx.strokeStyle = "green"
-    ctx.lineWidth = 3
-    ctx.strokeRect(minX, minY, maxX - minX, maxY - minY)
 
-    faceStatus.innerText = "Face Detected"
-    faceStatus.className = "badge bg-success"
-
-    // ================= EYE GAZE DETECTION =================
-    // LEFT EYE (landmarks)
-    const leftEye = landmarks[33]
-    const rightEye = landmarks[263]
-    const nose = landmarks[1]
-
-    const eyeCenterX = (leftEye.x + rightEye.x) / 2
-
-    let direction = "CENTER"
-    
-    let lastSentTime = 0
-
-    if (nose.x < eyeCenterX - 0.02) {
-        direction = "LEFT"
-    } 
-    else if (nose.x > eyeCenterX + 0.02) {
-        direction = "RIGHT"
-    }
-
-    // ================= CHEATING DETECTION =================
-    const now = Date.now()
-
-// ================= UI =================
-if (direction !== "CENTER") {
-    movementAlert.innerText = `⚠ Looking ${direction}`
-    movementAlert.style.color = "red"
-} else {
-    movementAlert.innerText = ""
-}
-
-// ================= COUNT ONLY ON CHANGE =================
-if (sessionId && direction !== "CENTER" && direction !== lastDirection) {
-
-    fetch(`${API}/exam/face_detection/${sessionId}`, {
-        method: "POST",
-        headers: getHeaders(),
-        body: JSON.stringify({
-            face_count: 1,
-            look_direction: direction
+        // 🟢 USER RETURNS
+        window.addEventListener("focus", () => {
+            console.log("WINDOW FOCUS")
+            lastTabState = false
         })
-    }).catch(err => console.log(err))
-}
 
-// ✅ ALWAYS update lastDirection
-lastDirection = direction
+        // REPORT
+        async function getReport() {
 
+            const res = await fetch(`${API}/exam/report/${sessionId}`, {
+                headers: getHeaders()
+            })
 
+            const data = await res.json()
 
+            reportBox.innerText = JSON.stringify(data, null, 2)
+        }
 
-
-// 🟢 USER RETURNS
-window.addEventListener("focus", () => {
-    console.log("WINDOW FOCUS")
-    lastTabState = false
-})
-
-// REPORT
-async function getReport() {
-
-    const res = await fetch(`${API}/exam/report/${sessionId}`, {
-        headers: getHeaders()
-    })
-
-    const data = await res.json()
-
-    reportBox.innerText = JSON.stringify(data, null, 2)
-}
-
-</script>
-
+    </script>
+    <div id="warningBox" style="display:none;
+            position:fixed;
+            top:20px;
+            right:20px;
+            background:#dc3545;
+            color:white;
+            padding:15px;
+            border-radius:10px;
+            z-index:9999;
+            font-weight:bold;">
+    </div>
 </body>
+
 </html>
