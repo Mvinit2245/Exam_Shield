@@ -728,50 +728,66 @@
         // ================= EYE GAZE DETECTION =================
         // LEFT EYE (landmarks)
         const leftEye = landmarks[33];
-const rightEye = landmarks[263];
-const nose = landmarks[1];
-const forehead = landmarks[10];
-const chin = landmarks[152];
+        const rightEye = landmarks[263];
+        const nose = landmarks[1];
+        const forehead = landmarks[10];
+        const chin = landmarks[152];
 
-let direction = "CENTER";
+        let direction = "CENTER";
 
-// ================= LEFT / RIGHT =================
+        // ================= LEFT / RIGHT =================
 
-const eyeCenterX = (leftEye.x + rightEye.x) / 2;
+        const eyeCenterX = (leftEye.x + rightEye.x) / 2;
 
-if (nose.x < eyeCenterX - 0.02) {
+        if (nose.x < eyeCenterX - 0.02) {
 
-    direction = "LEFT";
+            direction = "LEFT";
 
-    showWarning("👀 Looking Left Detected!");
+            showWarning("👀 Looking Left Detected!");
 
-}
-else if (nose.x > eyeCenterX + 0.02) {
+        }
+        else if (nose.x > eyeCenterX + 0.02) {
 
-    direction = "RIGHT";
+            direction = "RIGHT";
 
-    showWarning("👀 Looking Right Detected!");
+            showWarning("👀 Looking Right Detected!");
 
-}
+        }
 
-// ================= UP / DOWN =================
+        // ================= UP / DOWN =================
 
-const headHeight = chin.y - forehead.y;
+        // Ratio of nose position within the face
 
-if (headHeight < 0.28) {
+        
+        const pitchRatio =
+            (nose.y - forehead.y) /
+            (chin.y - forehead.y);
 
-    direction = "UP";
+        console.log("Pitch Ratio:", pitchRatio);
 
-    showWarning("⬆️ Looking Up Detected!");
+        // Looking Up
+        if (pitchRatio < 0.45) {
 
-}
-else if (headHeight > 0.42) {
+            direction = "UP";
 
-    direction = "DOWN";
+            if (lastHeadDirection !== "UP") {
+                showWarning("⬆️ Looking Up Detected!");
+                lastHeadDirection = "UP";
+            }
 
-    showWarning("⬇️ Looking Down Detected!");
+        }
 
-}
+        // Looking Down
+        else if (pitchRatio > 0.60) {
+
+            direction = "DOWN";
+
+            if (lastHeadDirection !== "DOWN") {
+                showWarning("⬇️ Looking Down Detected!");
+                lastHeadDirection = "DOWN";
+            }
+
+        }
 
         // ================= CHEATING DETECTION =================
         const now = Date.now()
