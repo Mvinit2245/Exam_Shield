@@ -13,6 +13,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision"></script>
 
 
     <style>
@@ -28,10 +29,26 @@
         .card {
             margin-top: 20px;
         }
+
+        .login-card {
+            width: 400px;
+            border-radius: 12px;
+            border: none;
+        }
+
+        .login-card .form-control {
+            height: 50px;
+        }
+
+        .login-card .btn {
+            height: 50px;
+            font-size: 18px;
+        }
     </style>
 </head>
 
 <body>
+
 
     <!-- REGISTER -->
     <div class="container mt-3" id="registerSection" style="display:none;">
@@ -55,18 +72,30 @@
     </div>
 
     <!-- LOGIN -->
-    <div class="container mt-3" id="loginSection">
-        <div class="card p-4">
-            <h3 class="text-center">Login</h3>
+    <div class="container mt-3" id="loginSection" style="display:none;">
+        <div class="card shadow-lg p-4 login-card" id="loginSection2">
 
-            <input id="username" class="form-control mt-2" placeholder="Username">
-            <input id="password" type="password" class="form-control mt-2" placeholder="Password">
+            <!-- Logo and Project Name -->
+            <div class="text-center mb-4" id="logoID">
+                <img src="logo.png" alt="Exam Shield Logo" class="logo">
+                <h2 class="platform-title">Exam Shield</h2>
+                <p class="platform-subtitle">Online Proctored Examination Platform</p>
+            </div>
+            <h3 class="text-center mb-4">Login</h3>
 
-            <button class="btn btn-primary mt-3" onclick="login()">Login</button>
+            <input id="username" class="form-control mb-3" placeholder="Username">
 
-            <p class="mt-3 text-center">
+            <input id="password" type="password" class="form-control mb-3" placeholder="Password">
+
+            <button class="btn btn-primary w-100" onclick="login()">
+                Login
+            </button>
+
+            <p class="mt-3 text-center mb-0">
                 Not registered?
-                <a href="#" onclick="showRegister(); return false;">Create Account</a>
+                <a href="#" onclick="showRegister(); return false;">
+                    Create Account
+                </a>
             </p>
         </div>
     </div>
@@ -74,11 +103,17 @@
     <!-- APP -->
     <div id="appSection" style="display:none;">
 
+
         <div class="container mt-4">
 
             <button class="btn btn-danger float-end" onclick="logout()">Logout</button>
 
             <h2 class="text-center">Online Exam Proctoring</h2>
+
+            <p>
+                Warning Count:
+                <span id="warningCounter" class="badge bg-danger">0/5</span>
+            </p>
 
             <!-- USER -->
             <div class="card p-3">
@@ -148,6 +183,11 @@
 
         const API = "http://127.0.0.1:8000"
 
+        let warningCount = 0;
+        const MAX_WARNINGS = 5;
+
+        let examStarted = false;
+
         let faceMesh
         let lastDirection = "CENTER"
 
@@ -160,6 +200,59 @@
         let objectAlertShown = false;
 
         let lastObjectDetected = ""
+
+        let noiseWarningActive = false;
+
+        // Warning Counter Function
+        function recordViolation(message) {
+
+            if (!examStarted) return;
+
+            warningCount++;
+
+            showWarning(`${message}<br>⚠️ Warning ${warningCount}/${MAX_WARNINGS}`);
+
+            document.getElementById("warningCounter").innerText =
+                `${warningCount}/${MAX_WARNINGS}`;
+
+            if (warningCount >= MAX_WARNINGS) {
+
+                showWarning("🚫 Exam Terminated!");
+
+                setTimeout(() => {
+                    terminateExam();
+                }, 2000);
+            }
+        }
+
+        // Exam Terminate Function
+
+        function terminateExam() {
+
+            alert("🚫 Exam Terminated!\nYou have exceeded the maximum warning limit.");
+
+            // Stop Camera & Mic
+            if (videoStream) {
+                videoStream.getTracks().forEach(track => track.stop());
+            }
+
+            // Notify Backend
+            if (sessionId) {
+
+                fetch(`${API}/exam/event/${sessionId}`, {
+                    method: "POST",
+                    headers: getHeaders(),
+                    body: JSON.stringify({
+                        event_type: "EXAM_TERMINATED"
+                    })
+                }).catch(err => console.log(err));
+            }
+
+            // Logout User
+            localStorage.clear();
+
+            window.location.href = "login.html";
+        }
 
         //Load Object Model function
         async function loadObjectModel() {
@@ -189,7 +282,7 @@
 
             if (!sessionId) return;
 
-            showWarning("⚠️ Tab Switching Detected!<br>🚫 Please stay on the exam screen.");
+            recordViolation("⚠️ Tab Switching Detected!<br>🚫 Please stay on the exam screen.");
 
             alert("⚠️ Warning!\n🚫 Tab Switching Detected.\nPlease stay on the exam screen.");
 
@@ -204,6 +297,8 @@
 
         // TAB SWITCH
         document.addEventListener("visibilitychange", () => {
+
+            if (!examStarted) return;
             if (document.hidden && !lastTabState) {
                 lastTabState = true
                 sendTabEvent()
@@ -215,7 +310,7 @@
 
         // ALT+TAB / MINIMIZE
         window.addEventListener("blur", () => {
-
+            if (!examStarted) return;
             if (systemAlertActive) return;
 
             if (!lastTabState) {
@@ -251,7 +346,8 @@
 
             } else {
 
-                showLogin();
+                window.location.href = "login.html";
+                return;
             }
         }
         // HEADERS
@@ -278,6 +374,8 @@
 
         function showRegister() {
             loginSection.style.display = "none"
+            loginSection2.style.display = "none"
+            logoID.style.display = "none"
             registerSection.style.display = "block"
             appSection.style.display = "none"
         }
@@ -285,6 +383,9 @@
         function showApp() {
             loginSection.style.display = "none"
             registerSection.style.display = "none"
+            loginSection2.style.display = "none"
+            logoID.style.display = "none"
+
             appSection.style.display = "block"
         }
 
@@ -371,8 +472,13 @@
             }
 
             alert("Logout Successful ✅")
+            examStarted = false;
+            warningCount = 0;
 
-            showLogin()
+            document.getElementById("warningCounter").innerText = "0/5";
+
+            window.location.href = "login.html";
+            return;
         }
 
         // START EXAM
@@ -392,6 +498,7 @@
             const data = await res.json()
 
             sessionId = data.session_id
+            examStarted = true;
             sessionId && (document.getElementById("sessionId").innerText = sessionId)
 
             await startCamera()
@@ -463,26 +570,38 @@
 
                 noiseLevel.innerText = volume.toFixed(2)
 
-                if (volume > 20) {
+                if (volume > 30) {
 
-                    showWarning("🔊 Noise Detected!");
+                    noiseStatus.innerText = "Noise Detected";
+                    noiseStatus.className = "badge bg-danger";
+
+                    // Count only once
+                    if (!noiseWarningActive) {
+
+                        noiseWarningActive = true;
+
+                        recordViolation("🔊 Noise Detected!");
+                        showWarning("🔊 Noise Detected!");
 
 
-                    noiseStatus.innerText = "Noise Detected"
-                    noiseStatus.className = "badge bg-danger"
-
-                    if (sessionId) {
-                        fetch(`${API}/exam/event/${sessionId}`, {
-                            method: "POST",
-                            headers: getHeaders(),
-                            body: JSON.stringify({ event_type: "NOISE" })
-                        })
+                        if (sessionId) {
+                            fetch(`${API}/exam/event/${sessionId}`, {
+                                method: "POST",
+                                headers: getHeaders(),
+                                body: JSON.stringify({
+                                    event_type: "NOISE"
+                                })
+                            });
+                        }
                     }
 
                 } else {
 
-                    noiseStatus.innerText = "Normal"
-                    noiseStatus.className = "badge bg-success"
+                    noiseStatus.innerText = "Normal";
+                    noiseStatus.className = "badge bg-success";
+
+                    // Reset when noise disappears
+                    noiseWarningActive = false;
                 }
 
             }, 2000)
@@ -532,7 +651,7 @@
 
                             lastObjectDetected = detectedObject;
 
-                            showWarning(
+                            recordViolation(
                                 `📱 Prohibited Object Detected!<br><b>${detectedObject.toUpperCase()}</b>`
                             );
 
@@ -580,7 +699,7 @@
             // ================= NO FACE =================
             if (faceCount === 0) {
 
-                showWarning("🚨 Face Not Detected!");
+                recordViolation("🚨 Face Not Detected!");
 
                 faceStatus.innerText = "Face Missing"
                 faceStatus.className = "badge bg-danger"
@@ -606,7 +725,7 @@
             // ================= MULTIPLE FACES =================
             if (faceCount > 1) {
 
-                showWarning("👥 Multiple Faces Detected!");
+                recordViolation("👥 Multiple Faces Detected!");
 
                 faceStatus.innerText = "Multiple Faces Detected"
                 faceStatus.className = "badge bg-warning"
@@ -737,28 +856,28 @@
 
         // ================= LEFT / RIGHT =================
 
-        const eyeCenterX = (leftEye.x + rightEye.x) / 2;
+        /*const eyeCenterX = (leftEye.x + rightEye.x) / 2;
 
         if (nose.x < eyeCenterX - 0.02) {
 
             direction = "LEFT";
 
-            showWarning("👀 Looking Left Detected!");
+            recordViolation("👀 Looking Left Detected!");
 
         }
         else if (nose.x > eyeCenterX + 0.02) {
 
             direction = "RIGHT";
 
-            showWarning("👀 Looking Right Detected!");
+            recordViolation("👀 Looking Right Detected!");
 
-        }
+        }*/
 
         // ================= UP / DOWN =================
 
         // Ratio of nose position within the face
 
-        
+
         const pitchRatio =
             (nose.y - forehead.y) /
             (chin.y - forehead.y);
