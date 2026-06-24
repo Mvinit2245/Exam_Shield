@@ -187,6 +187,7 @@
         const MAX_WARNINGS = 5;
 
         let examStarted = false;
+        let multipleFaceWarningActive = false;
 
         let faceMesh
         let lastDirection = "CENTER"
@@ -725,30 +726,33 @@
             // ================= MULTIPLE FACES =================
             if (faceCount > 1) {
 
-                recordViolation("👥 Multiple Faces Detected!");
+    faceStatus.innerText = "Multiple Faces Detected";
+    faceStatus.className = "badge bg-warning";
 
-                faceStatus.innerText = "Multiple Faces Detected"
-                faceStatus.className = "badge bg-warning"
+    if (!multipleFaceWarningActive) {
 
-                if (sessionId && lastDirection !== "MULTIPLE") {
+        multipleFaceWarningActive = true;
 
-                    fetch(`${API}/exam/face_detection/${sessionId}`, {
-                        method: "POST",
-                        headers: getHeaders(),
-                        body: JSON.stringify({
-                            face_count: faceCount,
-                            look_direction: "CENTER"
-                        })
-                    })
+        recordViolation("👥 Multiple Faces Detected!");
 
-                    lastDirection = "MULTIPLE"
-                }
+        if (sessionId) {
 
-                return
-            }
+            fetch(`${API}/exam/face_detection/${sessionId}`, {
+                method: "POST",
+                headers: getHeaders(),
+                body: JSON.stringify({
+                    face_count: faceCount,
+                    look_direction: "CENTER"
+                })
+            });
+        }
+    }
 
+    return;
+}
 
             // ================= SINGLE FACE =================
+            multipleFaceWarningActive = false;
             const landmarks = results.multiFaceLandmarks[0]
 
             // DRAW POINTS
